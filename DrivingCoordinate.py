@@ -23,5 +23,10 @@ class DrivingCoordinate:
         return self._NBO[0] * self._NBO[1]
 
     def sortByCharge(self):
-        self._NBO, self._Atoms, self._Hybrid = zip(*sorted(zip(self._NBO,self._Atoms,self._Hybrid), key=lambda x:x[0]))
-        pass
+        '''
+        Order the atoms with the one with the lower charge first and maintain ordering consistency
+        so that the first charge (_NBO[0]) and hybridization (_Hybrid[0]) values correspond to the
+        first atom
+        '''
+        self._NBO, self._Atoms, self._Hybrid = zip(*sorted(zip(self._NBO,self._Atoms,
+                                                               self._Hybrid),key=lambda x:x[0]))

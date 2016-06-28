@@ -15,12 +15,17 @@ class Reaction():
         self._activationEnergy = activationEnergy
         self._heatOfRxn = heatOfRxn
         self._drivingCoordinates = []
-        # TODO: add miscellaneous values
+        # TODO: add miscellaneous values (the ones in the dataset not associated with an
+        # add or break move)
 
     def addDrivingCoordinate(self, drivingCoordinate):
         self._drivingCoordinates.append(drivingCoordinate)
 
     def sortDrivingCoordinates(self):
+        '''
+        Sort the atoms within each driving coordinate and then sort the driving coordinates
+        by the lower of the 2 charges associated with each
+        '''
         addMoves = self.movesOfType('add')
         breakMoves = self.movesOfType('break')
         for addMove in addMoves:
@@ -30,9 +35,6 @@ class Reaction():
         addMoves = sorted(addMoves, key=lambda x : x._NBO[0])
         breakMoves = sorted(breakMoves, key=lambda x : x._NBO[0])
         
-#         addCharges = [i._NBO for i in sorted(addMoves, lambda x : x._NBO[0] + x._NBO[1])]
-#         breakCharges = [i._NBO for i in sorted(breakMoves, lambda x : x._NBO[0] + x._NBO[1])]
-        #Josh - RESUME HERE
         return addMoves, breakMoves
 
     def movesOfType(self, type):
@@ -42,6 +44,15 @@ class Reaction():
         return list(filter(lambda x : x._Type == type,self._drivingCoordinates))
     
     def buildFeatureVector(self,includeChargeMult=False,includeAddBreak=False,isSorted=True):
+        '''
+        Builds a feature vector containing data associated with this Reaction
+        includeChargeMult: whether to include the product of the 2 charges in each driving
+            coordinate as features (5 add + 5 break driving coordinates = 10 features)
+        inculdeAddBreak: whether to include the existance of each possible pair of elements
+            as a one-hot (binary) feature (num elements choose 2 features). If the pair of
+            elements appears in an add or break move, the feature value is 1 (otherwise 0)
+        isSorted: whether to sort the driving coordinates before constructing the feature vector
+        '''
         # up to 40+10=50 features because of hard limit on add and break moves of 5 and 4 features per move
         if isSorted:
             addMoves, breakMoves = self.sortDrivingCoordinates()
@@ -80,6 +91,17 @@ class Reaction():
         return featureVector
 
     def buildOrderedFeatureVector(self):
+        '''
+        Builds an alterantive feature vector to buildFeatureVector. An ordering of possible
+        pairs of elements is chosen and two binary features (one for add and one for break) are
+        created for each pair of elements corresponding to whether the reaction contains a move
+        of the given type between the pair of elements. For each of these features a corresponding
+        feature is created to contain the charge product of the elements in the add or break move.
+        
+        Example: if the 5th feature corresponds to whether there is an add move between carbon
+        and hydrogen and there are 15 of this type of feature, the 20th feature correpsonds to the
+        charge product of the carbon and hydrogen involved in the add move
+        '''
         possibleBonds = list(combinations_with_replacement(sorted(self._possibleAtoms), 2))
         existenceFeatures = np.zeros((len(possibleBonds)*2))
         chargeMultFeatures = np.zeros((len(possibleBonds)*2))

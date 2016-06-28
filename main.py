@@ -9,16 +9,17 @@ import sklearn as skl
 from sklearn import cross_validation as cv, preprocessing as pre
 from sklearn.cross_validation import KFold
 import matplotlib.pyplot as plt
-import statsmodels.api as sm
 from scipy import stats
 
 def getNumOfLines(fName):
+    'return the number of lines in the file named fName'
     with open(fName) as fh:
         for i, l in enumerate(fh):
             pass
     return (i + 1)
 
 def readFromFile(fName):
+    'parse the type of reaction info file that Paul Zimmerman provided into Reaction objects'
     # TODO: add error checking
     counter = 0
     typeAdd = []
@@ -98,13 +99,17 @@ def linearRegression(data, targets):
     sixFoldCrossValid = KFold(n=numOfDataPnts, n_folds=6, shuffle=True, random_state=None)
     i = 0
     for train_index, test_index in sixFoldCrossValid:
+        # split the data into training and testing sets
         data_train, data_test = data[train_index], data[test_index]
         target_train, target_test = targets[train_index], targets[test_index]
+        
+        # execute the underlying linear regression
         linRegress = lm.LinearRegression()
         linRegress.fit(data_train, target_train)
         targetPredicted = linRegress.predict(data_test)
         scores.append(linRegress.score(data_test, target_test))
-        # curve plotting
+        
+        # make plot of true vs predicted reactivity
         plt.scatter(targetPredicted, target_test) #, color='b', s=121/2, alpha=.4)
         axes = plt.gca()
         slope, intercept, r_value, p_value, std_err = stats.linregress(targetPredicted,target_test)
@@ -119,7 +124,6 @@ def linearRegression(data, targets):
         plt.savefig('linReg%i.png' % i)
         plt.clf()
         i += 1
-        # curve plotting
     meanScore = np.mean(scores)
     print ("prediction score: ", meanScore)
     return meanScore
@@ -163,6 +167,8 @@ def supportVectorRegression(data, targets):
 #     print ("prediction score: " , cv.cross_val_score(svr, data, targets).mean())
 
 def plotBarGraph(inputX, inputY, labels):
+    '''make a bar graph comparing the accuracy of the various machine learning algorithms
+    and feature sets'''
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ind = np.arange(len(inputX))
@@ -186,6 +192,8 @@ def plotBarGraph(inputX, inputY, labels):
     plt.savefig("figure.pdf")
 
 def plotRegularizationGraph(alphaVals, regScores):
+    '''make a plot of training and test accuracy over a range of regularization
+    parameters (alphaVals) used in ridge regression'''
     for name, currentScores in sorted(regScores.items()):
         plt.semilogx(alphaVals, currentScores, label=name)
     plt.title('Optimization of ridge regularization parameter\nby cross validation')
@@ -195,6 +203,7 @@ def plotRegularizationGraph(alphaVals, regScores):
     plt.savefig('Regularization curve.png')
 
 def plotScatterPlot(inputX1, inputX2, outFileName):
+    'Make a scatter plot showing the predicted vs actual activation energy for each reaction'
     plt.scatter(inputX1, inputX2) #, color='b', s=121/2, alpha=.4)
     axes = plt.gca()
     slope, intercept, r_value, p_value, std_err = stats.linregress(inputX1, inputX2)
@@ -218,6 +227,7 @@ def main():
     #numFeatures = 40
     targets = np.asarray([reaction._activationEnergy for reaction in reactions])
     
+    # create and initialize data matrices for each variant on the feature set
     data = {}
     data['hybrid & charge'] = np.asarray([reaction.buildFeatureVector() for reaction in reactions])
     data['hybrid & charge w/ products'] = np.asarray([reaction.buildFeatureVector(includeChargeMult=True) for reaction in reactions])
@@ -234,6 +244,8 @@ def main():
     inputY = []
     alphaScores = {}
     alphaVals = np.logspace(-20,2)
+    
+    # execute each of the machine learning algorithms and plot 
     for name, matrix in sorted(data.items()):
         labels.append(name)
         print(name)
