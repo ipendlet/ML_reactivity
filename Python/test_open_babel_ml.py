@@ -4,14 +4,18 @@ import pybel as pb
 from pathlib import Path
 import os
 import glob
+from sklearn.neighbors import NearestNeighbors
 
-def test_spectrophore():
-    # compute a sample spectrophore of a molecule using the pybel and open babel APIs
+def test_spectrophores():
+    # compute sample spectrophores of test molecules using the pybel and open babel APIs
     testDataPath = Path.home() / 'Molecules' / 'TestMLData'
     os.chdir(str(testDataPath))
-    molecule = next(pb.readfile('xyz', 'react3.xyz', None))
     spectrophoreCalculator = pb.ob.OBSpectrophore()
-    # print('Spectrophore:', spectrophoreCalculator.GetSpectrophore(molecule.OBMol))
+    spectrophores = []
+    for currentMolecule in get_test_molecules():
+        spectrophores.append(spectrophoreCalculator.GetSpectrophore(currentMolecule.OBMol))
+        # print('Spectrophore:', spectrophoreCalculator.GetSpectrophore(molecule.OBMol))
+    return spectrophores
 
 def test_png_create_command_line():
     "Try using open babel command line interface to create png's"
@@ -21,7 +25,6 @@ def test_png_create_command_line():
 
 def test_output_molecules(molecules):
     # compute some sample spectrophores and determine the nearest neighbors within them
-    spectrophores = []
     # molecule.write('svg','testMolecules.svg',overwrite=True)
     conv = pb.ob.OBConversion()
     conv.SetInAndOutFormats('xyz','png')
@@ -42,7 +45,9 @@ def get_test_molecules():
     return molecules
 
 def test_nearest_neighbors():
-    pass
+    'trying out computing nearest neighbors on spectrophore data for some sample molecules'
+    nearNeighbors = NearestNeighbors(1).fit(test_spectrophores())
+    print(nearNeighbors.kneighbors())
 
 def test_molecular_fingerprints(molecule):
     'trying out stuff with using molecular fingerprints'
@@ -52,5 +57,6 @@ def test_molecular_fingerprints(molecule):
     print(molecule.write('smi'))
     print(molecule.calcfp(fptype='maccs'))
 
-if __name__ == 'main':
+if __name__ == '__main__':
+    test_nearest_neighbors()
     print('DONE WITHOUT ERROR')
