@@ -6,6 +6,10 @@ import json
 import openbabel as ob
 import pybel
 from sklearn.neighbors import NearestNeighbors
+import os.path
+from subprocess import run
+
+nsteps = 25000
 
 obconv = ob.OBConversion()
 obconv.SetInAndOutFormats("smi", "smi")
@@ -22,7 +26,7 @@ elist_s = [ '[H]', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
 
 
 ######################################################
-def autoencoder(dimensions=[15, 100, 100, 15]):
+def autoencoder(dimensions=[15, 100, 100, 15], bias1=[]):
     """Build a deep autoencoder w/ tied weights.
     Parameters
     ----------
@@ -39,6 +43,9 @@ def autoencoder(dimensions=[15, 100, 100, 15]):
     cost : Tensor
         Overall cost to use for training
     """
+    # %% bias on the latent rep
+    bias = bias1
+
     # %% input to the network
     x = tf.placeholder(tf.float32, [None, dimensions[0]], name='x')
     current_input = x
@@ -78,6 +85,15 @@ def autoencoder(dimensions=[15, 100, 100, 15]):
 
     # %% cost function measures pixel-wise difference
     dcost = 0.
+    for i in range(0,len(bias)):
+      b12 = bias[i]
+      b1 = b12[0]
+      b2 = b12[1]
+      print ("in dcost. b's: ",b1," ",b2)
+
+      distb = tf.reduce_sum(tf.square(z[b1]-z[b2]))
+      normb = tf.multiply(tf.reduce_sum(tf.multiply(z[b1],z[b1])),tf.reduce_sum(tf.multiply(z[b2],z[b2]))) 
+      dcost += 100.*distb/normb
     cost = tf.reduce_sum(tf.square(y - x)) + dcost
     return {'x': x, 'z': z, 'y': y, 'cost': cost}
 ######################################################
@@ -89,7 +105,7 @@ def tozero(val):
 
 
 ######################################################
-def test_ob():
+def test_ob(knn):
    print (' ')
    print (' testing autoencoder!')
 
@@ -106,15 +122,27 @@ def test_ob():
    for at in xdata:
       print (' atom: ',at)
 
-   ae = autoencoder(dimensions=[xsize, 10])
+   bdata = []
+   if os.path.isfile('BIAS'):
+      with open('BIAS') as f:
+         for line in f:
+            pline = line.rstrip('\n')
+            nline = map(int, pline.split(' '))
+            for i in range(0,len(nline)):
+               nline[i] -= 1
+            bdata.append(nline)
+   print ('bdata (ref to 0):',bdata)
+
+   ae = autoencoder(dimensions=[xsize, 6],bias1=bdata)
    learning_rate = 0.005
    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(ae['cost'])
 
    # We create a session to use the graph
    sess = tf.Session()
    sess.run(tf.initialize_all_variables())
+#    sess.run(tf.global_variables_initializer())
 
-   n_epochs = 25000
+   n_epochs = nsteps
    for epoch_i in range(n_epochs):
       train = xdata
       sess.run(optimizer, feed_dict={ae['x']: train})
@@ -126,6 +154,8 @@ def test_ob():
 
    recon = sess.run(ae['y'], feed_dict={ae['x']: xdata})
    latent = sess.run(ae['z'], feed_dict={ae['x']: xdata})
+
+   print("\n errors: ")
    err = []
    for i in range(0,len(recon)):
       err.append(0.)
@@ -133,6 +163,7 @@ def test_ob():
          err[i] += pow(recon[i][j] - xdata[i][j],2)
       print('error: %0.5f' % err[i])
 
+   print("\n reconstruction: ")
    for i in range(0,len(recon)):
       for j in range(0,len(recon[0])):
          recon[i][j] = (recon[i][j]+0.5) * 8.
@@ -140,21 +171,19 @@ def test_ob():
       r1 = ["%0.1f" % tozero(i) for i in item]
       print(r1)
 
-
-#   dist = tf.reduce_sum(tf.abs(tf.add(z1, tf.neg(z2))), reduction_indices=1)
-#   pred = arg_min(dist,0)
+   print("\n latent representation: ")
    for item in latent:
       l1 = ["%0.2f" % i for i in item]
-#      closest = sess.run(pred,feed_dict=latent
       print(l1)
 
-   nbrs = NearestNeighbors(n_neighbors=1).fit(latent)
+   nbrs = NearestNeighbors(n_neighbors=knn).fit(latent)
    distances, indices = nbrs.kneighbors()
    print (' indices: ')
    print (indices)
    print (' distances: ')
    print (distances)
-   return indices
+
+   return indices, distances
 
 
 def s2i(ws):
@@ -219,16 +248,13 @@ def test_smiles():
       print (' atom: ',at)
    print('dim: ',len(xdata),',',len(xdata[0]))
 
-   gen2d = ob.OBOp.FindType("Gen2D")
+#   gen2d = ob.OBOp.FindType("Gen2D")
 
-   mol = pybel.readstring("smi", "C/C=C(O)\C")
-   gen2d.Do(mol.OBMol)
-   
-   # get the neighbor indices
-   neighborIndices = test_ob()
+#   mol = pybel.readstring("smi", "C/C=C(O)\C")
+#   gen2d.Do(mol.OBMol)
  
    n = 1
-   for i, at in enumerate(xdata):
+   for at in xdata:
       str1 = ""
       str1 = s2e(at[0])
       str1 = add_bonded(str1,at[4],at[7],at[5])
@@ -249,30 +275,53 @@ def test_smiles():
 ## openbabel can't read the R's
 #      obconv2.WriteFile(mol,"at"+str(n).zfill(2)+".svg")
       n += 1
-      
-      at = xdata[neighborIndices[i]]
+
+#########################################################
+def do_nn(knn):
+   with open('ATOMS', 'r') as f:
+      xdata = json.load(f)
+
+   nnat, dists = test_ob(knn)
+ 
+   for n in range(0,len(xdata)):
+      at = xdata[n]
       str1 = ""
       str1 = s2e(at[0])
       str1 = add_bonded(str1,at[4],at[7],at[5])
       str1 = add_bonded(str1,at[8],at[11],at[9])
       str1 = add_bonded(str1,at[12],at[15],at[13])
-#      for i in range(0,len(at)):
-#         print(" this one:",at[i])
-      print(" str1: ",str1)
-
       mol = ob.OBMol()
       obconv.ReadString(mol, str1)
       mol.AddHydrogens()
-#      pmol = pybel.Molecule(mol)
-#      output = pybel.Outputfile("xyz", "at"+str(n)+".xyz")
-#      output.write(pmol)
-#      output.close()
-      obconv.WriteFile(mol,"at"+str(n).zfill(2)+".smi")
-## openbabel can't read the R's
-#      obconv2.WriteFile(mol,"at"+str(n).zfill(2)+".svg")
-      n += 1
+
+      fname = "at"+str(n+1).zfill(2)+".00.smi"
+      #obconv.WriteFile(mol,fname)
+      molpy = pybel.Molecule(mol)
+      molpy = pybel.readstring("smi",str1)
+      molpy.title = "S"+str(n+1)
+      molpy.write("smi",fname,overwrite=True)
+
+      for m in range(0,knn):
+         at2 = xdata[nnat[n,m]]
+         str2 = ""
+         str2 = s2e(at2[0])
+         str2 = add_bonded(str2,at2[4],at2[7],at2[5])
+         str2 = add_bonded(str2,at2[8],at2[11],at2[9])
+         str2 = add_bonded(str2,at2[12],at2[15],at2[13])
+         mol2 = ob.OBMol()
+         obconv.ReadString(mol2, str2)
+         mol2.AddHydrogens()
+
+         fname2 = "at"+str(n+1).zfill(2)+".nn"+str(m+1)+".smi"
+         #obconv.WriteFile(mol2,fname2)
+         molpy2 = pybel.Molecule(mol2)
+         molpy2 = pybel.readstring("smi",str2)
+         molpy2.title = "NN"+str(n+1)+"-"+str(nnat[n,m]+1)+": "+str("%0.2f" % dists[n,m])
+         molpy2.write("smi",fname2,overwrite=True)
+#    run('. ~/.bash_profile; ./do_svg',shell=True)
+            
 
 ########################
-test_ob()
-# test_smiles()
-
+#test_ob(4)
+#test_smiles()
+do_nn(3)
