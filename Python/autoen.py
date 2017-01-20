@@ -118,7 +118,7 @@ def test_ob(knn):
    print('dim: ',len(xdata),',',xsize)
    for i in range(0,len(xdata)):
       for j in range(0,xsize):
-         xdata[i][j] = int(xdata[i][j]) / 8. - 0.5
+         xdata[i][j] = int(xdata[i][j]) / 10. - 0.5
    for at in xdata:
       print (' atom: ',at)
 
@@ -133,7 +133,7 @@ def test_ob(knn):
             bdata.append(nline)
    print ('bdata (ref to 0):',bdata)
 
-   ae = autoencoder(dimensions=[xsize, 6],bias1=bdata)
+   ae = autoencoder(dimensions=[xsize, 12],bias1=bdata)
    learning_rate = 0.005
    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(ae['cost'])
 
@@ -166,7 +166,7 @@ def test_ob(knn):
    print("\n reconstruction: ")
    for i in range(0,len(recon)):
       for j in range(0,len(recon[0])):
-         recon[i][j] = (recon[i][j]+0.5) * 8.
+         recon[i][j] = (recon[i][j]+0.5) * 10.
    for item in recon:
       r1 = ["%0.1f" % tozero(i) for i in item]
       print(r1)

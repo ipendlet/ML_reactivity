@@ -10,7 +10,7 @@ earray = [ 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
 ###################################################
 def reorderatoms( atlist ):
    natt = 4
-   numats = len(atlist)/natt
+   numats = len(atlist)//natt
    #print 'testing reorder atoms. natoms: ',numats
    for n in range(0,numats-2):
       swapit = 0
@@ -30,28 +30,28 @@ def reorderatoms( atlist ):
          return reorderatoms( atlist )
 ###################################################
 def addallatoms ( i1, mol1, allats ):
-   print 'now moving through pybel atoms, via converting to OBAtom'
-   print ''
+   print('now moving through pybel atoms, via converting to OBAtom')
+   print('')
    for atom in mol1:
       i1 += 1
       mol_ob_atoms = ob.OBMol()
 
-      print '  working on atom ',i1
+      print('  working on atom ',i1)
       atpr = []
       elem = earray[atom.atomicnum-1]
       atmin = [ elem, atom.coords[0], atom.coords[1], atom.coords[2] ]
-      print 'atomic coords: ',atmin
+      print('atomic coords: ',atmin)
 
       obatom = atom.OBAtom
       mol_ob_atoms.AddAtom(obatom)
-      print 'this atom is: ',atom.atomicnum,' ',atom.type,' index: ',atom.idx
+      print('this atom is: ',atom.atomicnum,' ',atom.type,' index: ',atom.idx)
 
       atpr.append(atom.atomicnum)
       atpr.append(atom.valence)
       atpr.append(atom.hyb)
       atpr.append(0)
       for nat in ob.OBAtomAtomIter(obatom):
-         print '  atomic#: ',nat.GetAtomicNum(),' hybridization: ',nat.GetHyb()
+         print('  atomic#: ',nat.GetAtomicNum(),' hybridization: ',nat.GetHyb())
          atpr.append(nat.GetAtomicNum())
          atpr.append(nat.GetValence())
          atpr.append(nat.GetHyb())
@@ -68,11 +68,11 @@ def addallatoms ( i1, mol1, allats ):
       if (atom.valence<4):
          atpr.extend([0,0,0,0])
       #atpr.append(i)
-      print '  fragment atoms: ',mol_ob_atoms.NumAtoms()
-      obconv.WriteFile(mol_ob_atoms,"atoms/w"+str(i1).rjust(2,'0')+".xyz")
-      print '  atpr: ',atpr
+      print('  fragment atoms: ',mol_ob_atoms.NumAtoms())
+      obconv.WriteFile(mol_ob_atoms,"atoms_all/w"+str(i1).rjust(2,'0')+".xyz")
+      print('  atpr: ',atpr)
 #      print 'atmin: ',string.join(atmin," ")
-      print ''
+      print('')
 
       allats.append(atpr)
    return i1
@@ -81,12 +81,12 @@ def addallatoms ( i1, mol1, allats ):
 
 filelist = glob.glob("react*.xyz")
 
-print 'adding all react.xyz files'
+print('adding all react.xyz files')
 molpr = []
 i = 0
 for file in filelist:
-   print ' ',file
-   mol1 = pybel.readfile("xyz", file).next()
+   print(' ',file)
+   mol1 = next(pybel.readfile("xyz", file))
    i = addallatoms(i,mol1,molpr)
    
 
@@ -97,7 +97,7 @@ for file in filelist:
 
 
 
-print ''
+print('')
 #print ' molpr:',molpr
 #print ' molpr[1,5]: ',molpr[1][5]   
 
@@ -111,7 +111,7 @@ for thisat in molpr:
 #turn set back into int list
 b2list = []
 for thisat in sorted(listpr):
-   print 'sortat: ',thisat
+   print('sortat: ',thisat)
    l1 = list(thisat)
    nlist = []
    for item in l1:
@@ -121,7 +121,7 @@ for thisat in sorted(listpr):
 #   print 'nlist: ',nlist
    b2list.append(nlist)
 #print ' listpr:',sorted(listpr)
-print ' number of unique atoms: ',len(listpr)
+print(' number of unique atoms: ',len(listpr))
 
 f = open('ATOMS', 'w')
 json.dump(b2list,f)
