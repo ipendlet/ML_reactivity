@@ -9,7 +9,7 @@ from sklearn.neighbors import NearestNeighbors
 import os.path
 from subprocess import run
 
-nsteps = 25000
+nsteps = 10000
 
 obconv = ob.OBConversion()
 obconv.SetInAndOutFormats("smi", "smi")
@@ -105,7 +105,7 @@ def tozero(val):
 
 
 ######################################################
-def test_ob(knn):
+def test_ob(knn, hiddenDims=[12]):
    print (' ')
    print (' testing autoencoder!')
 
@@ -133,7 +133,7 @@ def test_ob(knn):
             bdata.append(nline)
    print ('bdata (ref to 0):',bdata)
 
-   ae = autoencoder(dimensions=[xsize, 12],bias1=bdata)
+   ae = autoencoder(dimensions=[xsize] + hiddenDims,bias1=bdata)
    learning_rate = 0.005
    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(ae['cost'])
 
@@ -183,7 +183,7 @@ def test_ob(knn):
    print (' distances: ')
    print (distances)
 
-   return indices, distances
+   return indices, distances, cost1
 
 
 def s2i(ws):
@@ -322,6 +322,7 @@ def do_nn(knn):
             
 
 ########################
-#test_ob(4)
-#test_smiles()
-do_nn(3)
+if __name__ == '__main__':
+    #test_ob(4)
+    #test_smiles()
+    do_nn(3)

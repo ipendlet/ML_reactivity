@@ -5,6 +5,8 @@ from pathlib import Path
 import os
 import glob
 from sklearn.neighbors import NearestNeighbors
+from autoen import test_ob
+import matplotlib.pyplot as plt
 
 def test_spectrophores():
     # compute sample spectrophores of test molecules using the pybel and open babel APIs
@@ -57,6 +59,22 @@ def test_molecular_fingerprints(molecule):
     print(molecule.write('smi'))
     print(molecule.calcfp(fptype='maccs'))
 
+def autoencoder_tuning_graphs():
+    'run the autoencoder with a variety of hidden layer dimensionalities and check error'
+    dims = list(range(4,16))
+    errors = [[],[]]
+    for dim in dims:
+        errors[0].append(test_ob(1,[dim])[2])
+        errors[1].append(test_ob(1,[20,dim])[2])
+    # create plot of errors
+    plt.plot(dims,errors[0],label='1 hidden layer')
+    plt.plot(dims,errors[1],label='2 hidden layers')
+    plt.title('Searching for intrinsic dimensionality of sample data')
+    plt.xlabel('Dimensionality of latent representation')
+    plt.ylabel('Reconstruction error')
+    plt.legend()
+    plt.savefig('IntrinsicDimensionality.png')
+
 if __name__ == '__main__':
-    test_nearest_neighbors()
+    autoencoder_tuning_graphs()
     print('DONE WITHOUT ERROR')
