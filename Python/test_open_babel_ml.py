@@ -29,17 +29,41 @@ def test_output_molecules(molecules):
     # compute some sample spectrophores and determine the nearest neighbors within them
     # molecule.write('svg','testMolecules.svg',overwrite=True)
     conv = pb.ob.OBConversion()
-    conv.SetInAndOutFormats('xyz','png')
-    emptyList = ['']
-    # conv.FullConvert(['abc','def'],'testMolecules.png',['react' + str(i) + '.xyz' for i in range(1,7)])
-    outPbFile = pb.Outputfile('svg','testMolecules.svg',overwrite=True)
-    for currentMolecule in molecules:
-        pass
-    #     outPbFile.write(currentMolecule)
-    outPbFile.close()
+    conv.SetInAndOutFormats('smi','svg')
+    conv.OpenInAndOutFiles('test.smi','test.svg')
+#     conv.Convert()
+    molecule = pb.ob.OBMol()
+    molecule2 = pb.ob.OBMol()
+    conv.ReadString(molecule,'C1=CC=CS1')
+    conv.ReadString(molecule2,'CC')
+    
+    outFormat = conv.GetOutFormat()
+    
+    conv.AddChemObject(molecule)
+    conv.SetOneObjectOnly(False)
+#     outFormat.WriteChemObject(conv)
+    
+    conv.AddChemObject(molecule2)
+    conv.SetOneObjectOnly(True)
+    outFormat.WriteChemObject(conv)
+    
+#     svg = conv.WriteString(molecule)
+#     print(svg)
+#     emptyList = ['']
+#     a = pb.ob.vectorString(['test.smi'])
+#     b = pb.ob.vectorString(['b'])
+#     c = pb.ob.stringbuf()
+#     conv.FullConvert(['abc','def'],'testMolecules.png',['react' + str(i) + '.xyz' for i in range(1,7)])
+#     conv.FullConvert(a,'',b)
+#     print(b)
+#     outPbFile = pb.Outputfile('svg','testMolecules.svg',overwrite=True)
+#     for currentMolecule in molecules:
+#         outPbFile.write(currentMolecule)
+#     outPbFile.close()
     # print(spectrophores)
 
 def get_test_molecules():
+    os.chdir(str(Path.home() / 'Molecules' / 'TestMLData'))
     molecules = []
     for i in range(1,7):
         currentMolecule = next(pb.readfile('xyz', 'react' + str(i) + '.xyz', None))
@@ -76,5 +100,7 @@ def autoencoder_tuning_graphs():
     plt.savefig('IntrinsicDimensionality.png')
 
 if __name__ == '__main__':
-    autoencoder_tuning_graphs()
+#     autoencoder_tuning_graphs()
+#     test_image_generation()
+    test_output_molecules(get_test_molecules())
     print('DONE WITHOUT ERROR')
