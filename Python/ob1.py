@@ -78,52 +78,52 @@ def addallatoms ( i1, mol1, allats ):
    return i1
 ##########################################################
 
-
-filelist = glob.glob("react*.xyz")
-
-print('adding all react.xyz files')
-molpr = []
-i = 0
-for file in filelist:
-   print(' ',file)
-   mol1 = next(pybel.readfile("xyz", file))
-   i = addallatoms(i,mol1,molpr)
-   
-
-#mol_ob = ob.OBMol()
-# png write doesn't work. can use babel -O
-#obconv.SetOutFormat("png")
-#obconv.WriteFile(mol_ob,'bz1.xyz')
-
-
-
-print('')
-#print ' molpr:',molpr
-#print ' molpr[1,5]: ',molpr[1][5]   
-
-
-#create unique list of atoms
-listpr = set()
-for thisat in molpr:
-#   print 'thisat: ',thisat
-   listpr.add(repr(thisat))
-
-#turn set back into int list
-b2list = []
-for thisat in sorted(listpr):
-   print('sortat: ',thisat)
-   l1 = list(thisat)
-   nlist = []
-   for item in l1:
-      if item.isdigit():
-         nlist.append(item)
-#   print 'l1: ',l1
-#   print 'nlist: ',nlist
-   b2list.append(nlist)
-#print ' listpr:',sorted(listpr)
-print(' number of unique atoms: ',len(listpr))
-
-f = open('ATOMS', 'w')
-json.dump(b2list,f)
-f.close()
-
+if __name__ == '__main__':
+    
+    filelist = glob.glob("react*.xyz")
+    
+    print('adding all react.xyz files')
+    molpr = []
+    i = 0
+    for file in filelist:
+       print(' ',file)
+       mol1 = next(pybel.readfile("xyz", file))
+       i = addallatoms(i,mol1,molpr)
+       
+    
+    #mol_ob = ob.OBMol()
+    # png write doesn't work. can use babel -O
+    #obconv.SetOutFormat("png")
+    #obconv.WriteFile(mol_ob,'bz1.xyz')
+    
+    
+    
+    print('')
+    #print ' molpr:',molpr
+    #print ' molpr[1,5]: ',molpr[1][5]   
+    
+    
+    #create unique list of atoms
+    listpr = set()
+    for thisat in molpr:
+    #   print 'thisat: ',thisat
+       listpr.add(repr(thisat))
+    
+    #turn set back into int list
+    b2list = []
+    for thisat in sorted(listpr):
+       print('sortat: ',thisat)
+       l1 = list(thisat)
+       nlist = []
+       for item in l1:
+          if item.isdigit():
+             nlist.append(item)
+    #   print 'l1: ',l1
+    #   print 'nlist: ',nlist
+       b2list.append(nlist)
+    #print ' listpr:',sorted(listpr)
+    print(' number of unique atoms: ',len(listpr))
+    
+    f = open('ATOMS', 'w')
+    json.dump(b2list,f)
+    f.close()
