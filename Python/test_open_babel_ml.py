@@ -85,22 +85,20 @@ def test_molecular_fingerprints(molecule):
 
 def autoencoder_tuning_graphs():
     'run the autoencoder with a variety of hidden layer dimensionalities and check error'
-    dims = list(range(4,16))
-    errors = [[],[]]
-    for dim in dims:
-        errors[0].append(test_ob(1,[dim])[2])
-        errors[1].append(test_ob(1,[20,dim])[2])
+    for layer1Dim in range(6,16):
+        errors = []
+        latentLayerDims = range(4,layer1Dim+1)
+        for latentLayerDim in latentLayerDims:
+            errors.append(test_ob(1,[layer1Dim,latentLayerDim])[2])
+        plt.semilogy(latentLayerDims,errors,label=layer1Dim)
     # create plot of errors
-    plt.plot(dims,errors[0],label='1 hidden layer')
-    plt.plot(dims,errors[1],label='2 hidden layers')
     plt.title('Searching for intrinsic dimensionality of sample data')
     plt.xlabel('Dimensionality of latent representation')
     plt.ylabel('Reconstruction error')
-    plt.legend()
+    plt.legend(title='Hidden layer dimensionality')
     plt.savefig('IntrinsicDimensionality.png')
 
 if __name__ == '__main__':
-#     autoencoder_tuning_graphs()
-#     test_image_generation()
-    test_output_molecules(get_test_molecules())
+    autoencoder_tuning_graphs()
+#     test_output_molecules(get_test_molecules())
     print('DONE WITHOUT ERROR')

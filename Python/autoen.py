@@ -26,6 +26,16 @@ elist_s = [ '[H]', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
 
 
 ######################################################
+
+class Autoencoder:
+    
+    def fit(self, train_data):
+        'train an autoencoder using the data given as input'
+        
+    
+    def score(self, test_data):
+        'compute the reconstruction error for some test data'
+
 def autoencoder(dimensions=[15, 100, 100, 15], bias1=[]):
     """Build a deep autoencoder w/ tied weights.
     Parameters
@@ -83,7 +93,7 @@ def autoencoder(dimensions=[15, 100, 100, 15], bias1=[]):
     # %% now have the reconstruction through the network
     y = current_input
 
-    # %% cost function measures pixel-wise difference
+    # %% cost function measures reconstruction error with human bias added
     dcost = 0.
     for i in range(0,len(bias)):
       b12 = bias[i]
@@ -109,6 +119,7 @@ def test_ob(knn, hiddenDims=[12]):
    print (' ')
    print (' testing autoencoder!')
 
+   # read and parse the input file and clean up the data
    with open('ATOMS', 'r') as f:
       xdata = json.load(f)
    print('read-in data:')
@@ -122,6 +133,7 @@ def test_ob(knn, hiddenDims=[12]):
    for at in xdata:
       print (' atom: ',at)
 
+   # read in a file with human suggestions if it exists
    bdata = []
    if os.path.isfile('BIAS'):
       with open('BIAS') as f:
@@ -133,6 +145,7 @@ def test_ob(knn, hiddenDims=[12]):
             bdata.append(nline)
    print ('bdata (ref to 0):',bdata)
 
+   # create the autoencoder and optimizer
    ae = autoencoder(dimensions=[xsize] + hiddenDims,bias1=bdata)
    learning_rate = 0.005
    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(ae['cost'])
@@ -142,6 +155,7 @@ def test_ob(knn, hiddenDims=[12]):
    sess.run(tf.initialize_all_variables())
 #    sess.run(tf.global_variables_initializer())
 
+   # train the autoencoder on the input data
    n_epochs = nsteps
    for epoch_i in range(n_epochs):
       train = xdata
