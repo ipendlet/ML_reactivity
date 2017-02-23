@@ -1,13 +1,12 @@
 # %% Imports
 import tensorflow as tf
-import numpy as np
 import math
 import json
 import openbabel as ob
 import pybel
 from sklearn.neighbors import NearestNeighbors
 import os.path
-from subprocess import run
+from sklearn.base import BaseEstimator
 
 nsteps = 10000
 
@@ -20,21 +19,40 @@ elist = [ 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
 elist_s = [ '[H]', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
            'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar' ]
 
-######################################################
-#def getdist(z1,z2):
-#    return tf.reduce_sum(tf.abs(tf.add(z1, tf.neg(z2))), reduction_indices=1)
-
-
-######################################################
-
-class Autoencoder:
+class Autoencoder(BaseEstimator):
+    tf_session = None
+    def __init__(self, dimensions, bias=[]):
+        self.dimensions = dimensions
+        self.bias = bias
     
-    def fit(self, train_data):
+    def get_params(self, deep=True):
+        return BaseEstimator.get_params(self, deep=deep)
+     
+    def set_params(self, **params):
+        return BaseEstimator.set_params(self, **params)
+    
+    def fit(self, train_data, n_epochs=10000):
+        self._ae = autoencoder(dimensions=self.dimensions,bias1=self.bias)
+        self._learning_rate = 0.005
+        self._optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self._ae['cost'])
         'train an autoencoder using the data given as input'
-        
+        Autoencoder.tf_session.run(tf.global_variables_initializer())
+        for epoch_i in range(n_epochs):
+            Autoencoder.tf_session.run(self._optimizer, feed_dict={self._ae['x']: train_data})
+            if (epoch_i%1000==0):
+                cost1 = Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: train_data})
+                print(epoch_i, cost1)
+            if (cost1<0.001):
+                break
+    
+    def predict(self, data):
+        'compute the latent representation of some data'
+        latent = Autoencoder.tf_session.run(['z'], feed_dict={self._ae['x']: data})
+        return latent
     
     def score(self, test_data):
         'compute the reconstruction error for some test data'
+        return -1 * Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: test_data})
 
 def autoencoder(dimensions=[15, 100, 100, 15], bias1=[]):
     """Build a deep autoencoder w/ tied weights.
@@ -85,15 +103,10 @@ def autoencoder(dimensions=[15, 100, 100, 15], bias1=[]):
         current_input = output
     n_input = int(current_input.get_shape()[1])
 
-#    Ws = tf.Variable(
-#         tf.random_uniform([n_input, n_output],
-#                            -1.0 / math.sqrt(n_input),
-#                            1.0 / math.sqrt(n_input)))
-
     # %% now have the reconstruction through the network
     y = current_input
 
-    # %% cost function measures reconstruction error with human bias added
+    # %% cost function measures reconstruction error with human bias potentially added
     dcost = 0.
     for i in range(0,len(bias)):
       b12 = bias[i]
@@ -114,7 +127,8 @@ def tozero(val):
    return val
 
 
-######################################################
+####################################################
+
 def test_ob(knn, hiddenDims=[12]):
    print (' ')
    print (' testing autoencoder!')
