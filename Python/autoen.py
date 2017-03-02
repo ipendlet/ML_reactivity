@@ -7,6 +7,7 @@ import pybel
 from sklearn.neighbors import NearestNeighbors
 import os.path
 from sklearn.base import BaseEstimator
+import numpy as np
 
 nsteps = 10000
 
@@ -21,18 +22,14 @@ elist_s = [ '[H]', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
 
 class Autoencoder(BaseEstimator):
     tf_session = None
-    def __init__(self, dimensions, bias=[]):
+    def __init__(self, dimensions, bias=[], beta=0):
+        'beta is l2 regularization coefficient for neural network node weights'
         self.dimensions = dimensions
         self.bias = bias
-    
-    def get_params(self, deep=True):
-        return BaseEstimator.get_params(self, deep=deep)
-     
-    def set_params(self, **params):
-        return BaseEstimator.set_params(self, **params)
-    
+        self.beta = beta
+        
     def fit(self, train_data, n_epochs=10000):
-        self._ae = autoencoder(dimensions=self.dimensions,bias1=self.bias)
+        self._ae = self.autoencoder(dimensions=self.dimensions,bias1=self.bias)
         self._learning_rate = 0.005
         self._optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self._ae['cost'])
         'train an autoencoder using the data given as input'
@@ -51,75 +48,83 @@ class Autoencoder(BaseEstimator):
         return latent
     
     def score(self, test_data):
-        'compute the reconstruction error for some test data'
-        return -1 * Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: test_data})
+        'compute the root mean square reconstruction error for some test data'
+        cost = Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: test_data})
+        return -1 * np.sqrt(cost / test_data.shape[0])
 
-def autoencoder(dimensions=[15, 100, 100, 15], bias1=[]):
-    """Build a deep autoencoder w/ tied weights.
-    Parameters
-    ----------
-    dimensions : list, optional
-        The number of neurons for each layer of the autoencoder.
-    Returns
-    -------
-    x : Tensor
-        Input placeholder to the network
-    z : Tensor
-        Inner-most latent representation
-    y : Tensor
-        Output reconstruction of the input
-    cost : Tensor
-        Overall cost to use for training
-    """
-    # %% bias on the latent rep
-    bias = bias1
-
-    # %% input to the network
-    x = tf.placeholder(tf.float32, [None, dimensions[0]], name='x')
-    current_input = x
-
-    # %% Build the encoder
-    encoder = []
-    for layer_i, n_output in enumerate(dimensions[1:]):
+    def autoencoder(self, dimensions=[15, 100, 100, 15], bias1=[]):
+        """Build a deep autoencoder w/ tied weights.
+        Parameters
+        ----------
+        dimensions : list, optional
+            The number of neurons for each layer of the autoencoder.
+        Returns
+        -------
+        x : Tensor
+            Input placeholder to the network
+        z : Tensor
+            Inner-most latent representation
+        y : Tensor
+            Output reconstruction of the input
+        cost : Tensor
+            Overall cost to use for training
+        """
+        # %% bias on the latent rep
+        bias = bias1
+    
+        # %% input to the network
+        x = tf.placeholder(tf.float32, [None, dimensions[0]], name='x')
+        current_input = x
+    
+        # %% Build the encoder
+        encoder = []
+        for layer_i, n_output in enumerate(dimensions[1:]):
+            n_input = int(current_input.get_shape()[1])
+            W = tf.Variable(
+                tf.random_uniform([n_input, n_output],
+                                  -1.0 / math.sqrt(n_input),
+                                  1.0 / math.sqrt(n_input)))
+            b = tf.Variable(tf.zeros([n_output]))
+            encoder.append(W)
+            output = tf.nn.tanh(tf.matmul(current_input, W) + b)
+            current_input = output
+    
+        # %% latent representation
+        z = current_input
+        encoder.reverse()
+    
+        # %% Build the decoder using the same weights
+        for layer_i, n_output in enumerate(dimensions[:-1][::-1]):
+            W = tf.transpose(encoder[layer_i])
+            b = tf.Variable(tf.zeros([n_output]))
+            output = tf.nn.tanh(tf.matmul(current_input, W) + b)
+            current_input = output
         n_input = int(current_input.get_shape()[1])
-        W = tf.Variable(
-            tf.random_uniform([n_input, n_output],
-                              -1.0 / math.sqrt(n_input),
-                              1.0 / math.sqrt(n_input)))
-        b = tf.Variable(tf.zeros([n_output]))
-        encoder.append(W)
-        output = tf.nn.tanh(tf.matmul(current_input, W) + b)
-        current_input = output
-
-    # %% latent representation
-    z = current_input
-    encoder.reverse()
-
-    # %% Build the decoder using the same weights
-    for layer_i, n_output in enumerate(dimensions[:-1][::-1]):
-        W = tf.transpose(encoder[layer_i])
-        b = tf.Variable(tf.zeros([n_output]))
-        output = tf.nn.tanh(tf.matmul(current_input, W) + b)
-        current_input = output
-    n_input = int(current_input.get_shape()[1])
-
-    # %% now have the reconstruction through the network
-    y = current_input
-
-    # %% cost function measures reconstruction error with human bias potentially added
-    dcost = 0.
-    for i in range(0,len(bias)):
-      b12 = bias[i]
-      b1 = b12[0]
-      b2 = b12[1]
-      print ("in dcost. b's: ",b1," ",b2)
-
-      distb = tf.reduce_sum(tf.square(z[b1]-z[b2]))
-      normb = tf.multiply(tf.reduce_sum(tf.multiply(z[b1],z[b1])),tf.reduce_sum(tf.multiply(z[b2],z[b2]))) 
-      dcost += 100.*distb/normb
-    cost = tf.reduce_sum(tf.square(y - x)) + dcost
-    return {'x': x, 'z': z, 'y': y, 'cost': cost}
-######################################################
+    
+        # %% now have the reconstruction through the network
+        y = current_input
+    
+        # %% cost function measures reconstruction error with human bias potentially added
+        # %% and regularization
+        dcost = 0.
+        for i in range(0,len(bias)):
+          b12 = bias[i]
+          b1 = b12[0]
+          b2 = b12[1]
+          print ("in dcost. b's: ",b1," ",b2)
+    
+          distb = tf.reduce_sum(tf.square(z[b1]-z[b2]))
+          normb = tf.multiply(tf.reduce_sum(tf.multiply(z[b1],z[b1])),tf.reduce_sum(tf.multiply(z[b2],z[b2]))) 
+          dcost += 100.*distb/normb
+          
+        regularizationLoss = 0
+        for layer in encoder:
+            regularizationLoss += tf.nn.l2_loss(layer)
+        regularizationLoss *= self.beta
+        
+        cost = tf.reduce_sum(tf.square(y - x)) + dcost + regularizationLoss
+        return {'x': x, 'z': z, 'y': y, 'cost': cost}
+    ######################################################
 
 def tozero(val):
    if (val<0):
