@@ -12,6 +12,7 @@ import json
 import tensorflow as tf
 from sklearn.model_selection._validation import cross_val_score
 from sklearn.model_selection._split import KFold
+from tensorflow.contrib.learn.python.learn.estimators._sklearn import train_test_split
 
 def test_spectrophores():
     # compute sample spectrophores of test molecules using the pybel and open babel APIs
@@ -88,7 +89,7 @@ def test_molecular_fingerprints(molecule):
     print(molecule.write('smi'))
     print(molecule.calcfp(fptype='maccs'))
 
-def autoencoder_tuning_graphs():
+def autoencoder_dim_tuning_graph():
     '''run the autoencoder with a variety of hidden layer dimensionalities and plot the cross
     validation errors for each
     '''
@@ -100,23 +101,47 @@ def autoencoder_tuning_graphs():
     
     with tf.Session() as sess:
         Autoencoder.tf_session = sess
-        for layer1Dim in range(6,16):
+#         for layer1Dim in range(6,16):
+        for layer1Dim in range(4,5):
             print('LAYER 1 DIMENSIONALITY: ', layer1Dim)
             errors.append([])
             latentLayerDims = range(4,layer1Dim+1)
             for latentLayerDim in latentLayerDims:
                 auto = Autoencoder([data.shape[1],layer1Dim,latentLayerDim])
-                errors[-1].append(-1.0 * np.mean(cross_val_score(auto, scaledData, cv=kFold)))
+                errors[-1].append(-10.0 * np.mean(cross_val_score(auto, scaledData, cv=kFold)))
             plt.semilogy(latentLayerDims,errors[-1],label=layer1Dim)
     print(errors)
     # create plot of errors and write them to a file in case I need to tweak the plot
-    plt.title('Searching for intrinsic dimensionality of sample data')
-    plt.xlabel('Dimensionality of latent representation')
-    plt.ylabel('Scaled data reconstruction error')
-    plt.legend(title='Hidden layer dimensionality')
-    plt.savefig('IntrinsicDimensionality.png')
-    with open('autoencoder_scores.txt', 'w') as file:
-        json.dump(errors, file)
+#     plt.title('Searching for intrinsic dimensionality of sample data')
+#     plt.xlabel('Dimensionality of latent representation')
+#     plt.ylabel('Scaled data reconstruction error')
+#     plt.legend(title='Hidden layer dimensionality')
+#     plt.savefig('IntrinsicDimensionality.png')
+#     with open('autoencoder_scores.txt', 'w') as file:
+#         json.dump(errors, file)
+
+def plot_regularization_curve():
+    data = read_atoms_data()
+    scaledData = data / 10 - 0.5
+    trainData, testData = train_test_split(scaledData)
+    
+    betaVals = np.logspace(-20,2,10)
+    trainScores = []
+    testScores = []
+    with tf.Session() as sess:
+        Autoencoder.tf_session = sess
+        for beta in betaVals:
+            auto = Autoencoder([scaledData.shape[1],10,7], beta=beta)
+            auto.fit(trainData)
+            trainScores.append(-1*auto.score(trainData))
+            testScores.append(-1*auto.score(testData))
+    plt.loglog(betaVals, trainScores, label="Training error")
+    plt.loglog(betaVals, testScores, label="Test error")
+    plt.title('Regularization curve for autoencoder')
+    plt.xlabel('Regularization coefficient')
+    plt.ylabel('RMSE')
+    plt.legend(loc='best')
+    plt.savefig('RegularizationCurve.png')
 
 def read_atoms_data():
     with open('ATOMS', 'r') as file:
@@ -125,6 +150,7 @@ def read_atoms_data():
 
 if __name__ == '__main__':
     print('STARTED!')
-    autoencoder_tuning_graphs()
+#     autoencoder_dim_tuning_graph()
+    plot_regularization_curve()
 #     test_output_molecules(get_test_molecules())
     print('DONE WITHOUT ERROR')
