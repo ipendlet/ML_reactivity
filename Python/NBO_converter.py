@@ -1,4 +1,4 @@
-import openbabel as ob
+#import openbabel as ob
 
 class Atom:
     def __init__(self, atomicNum, naturalCharge):
@@ -55,10 +55,12 @@ class NaturalBondOrbital:
 def create_atom_list(atomLines):
     '''parse the lines of an NBO output file containing the identities and charges of each atom
     '''
+    element_table=["X","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No"];
     atomsList = []
     for line in atomLines:
         elementSymbol = line.split()[0]
-        atomicNum = ob.OBElementTable().GetAtomicNum(elementSymbol)
+        #atomicNum = ob.OBElementTable().GetAtomicNum(elementSymbol)
+        atomicNum = element_table.index(elementSymbol)
         naturalCharge = float(line.split()[2])
         atomsList.append(Atom(atomicNum, naturalCharge))
     return atomsList
@@ -104,6 +106,6 @@ def extract_NBOs_from_qchem_output(file):
 
 if __name__ == '__main__':
 #     with open('/export/zimmerman/ericwalk/QChem/nbo_example.out') as file:
-    with open('/Users/joshkamm/Desktop/nbo_example.out') as file:
+    with open('/export/zimmerman/ericwalk/QChem/nbo_example.out') as file:
         extract_NBOs_from_qchem_output(file)
 
