@@ -13,6 +13,86 @@ import tensorflow as tf
 from sklearn.model_selection._validation import cross_val_score
 from sklearn.model_selection._split import KFold
 from tensorflow.contrib.learn.python.learn.estimators._sklearn import train_test_split
+from textwrap import dedent
+from bp_setup import archive_path
+import sys
+
+class AutoencoderRegularizer():
+    @classmethod
+    def run(cls):
+        if (len(sys.argv) == 2):
+            'execute the autoencoder for the appropriate beta value'
+            cls().run_autoencoder(float(sys.argv[1]))
+        elif (len(sys.argv) == 1):
+            'setup the jobs for the autoencoder'
+            cls().setup_jobs()
+    
+    def get_path(self):
+        return (Path.home() / 'Molecules' / 'ReactivityMLTestData' / 'AutoencoderRegularization')
+    
+    def setup_jobs(self):
+        betaVals = np.logspace(-20,2,20)
+        runPath = self.get_path() / 'LatestRun'
+        archive_path(runPath)
+        runPath.mkdir()
+        
+        for i, beta in enumerate(betaVals):
+            # create a folder for each value of the regularization parameter
+            path = (runPath / str(i))
+            path.mkdir()
+            os.chdir(str(path))
+            self.submit_job(beta)
+    
+    def submit_job(self, beta):
+        print("Current working directory:", Path.cwd())
+        
+        qshFilename = 'submit.qsh'
+        with (Path.cwd() / qshFilename).open(mode='x') as qshFile:
+            pbsDirectives = dedent('''\
+            #PBS -l nodes=1:ppn=1 -l walltime=6:00:00
+            #PBS -q zimmerman -N TensorFlow
+            ''')
+            print(pbsDirectives, file=qshFile)
+            print('cd $PBS_O_WORKDIR', file=qshFile)
+            print('python ~/ReactivityMachineLearning/Python/test_open_babel_ml.py',
+                  beta, file=qshFile)
+            
+        # execute qsub command to submit job to the queue
+        run(['qsub', qshFilename])
+    
+    def run_autoencoder(self, beta):
+        'beta is l2 regularization parameter'
+        data = read_atoms_data(self.get_path() / 'ATOMS')
+        scaledData = data / 10 - 0.5
+        trainData, testData = train_test_split(scaledData)
+        
+        with tf.Session() as sess:
+            Autoencoder.tf_session = sess
+            auto = Autoencoder([scaledData.shape[1],10,7], beta=beta)
+            auto.fit(trainData)
+            with open('scores', 'x') as scoresFile:
+                scores = [-1*auto.score(trainData),-1*auto.score(testData)]
+                json.dump(scores, scoresFile)
+
+    @classmethod
+    def plot_regularization_curve(cls):
+        'take errors from a collection of TensorFlow runs and produce test vs train error graph'
+        betaVals = np.logspace(-20,2,20)
+        trainScores = []
+        testScores = []
+        for i, beta in enumerate(betaVals):
+            os.chdir(str(cls().get_path() / 'LatestRun' / str(i)))
+            with open('scores', 'r') as scoresFile:
+                scores = json.load(scoresFile)
+            trainScores.append(scores[0])
+            testScores.append(scores[1])
+        plt.loglog(betaVals, trainScores, label="Training error")
+        plt.loglog(betaVals, testScores, label="Test error")
+        plt.title('Regularization curve for autoencoder')
+        plt.xlabel('Regularization coefficient')
+        plt.ylabel('RMSE')
+        plt.legend(loc='best')
+        plt.savefig(str(Path.home() / 'Desktop' / 'RegularizationCurve.png'))
 
 def test_spectrophores():
     # compute sample spectrophores of test molecules using the pybel and open babel APIs
@@ -120,37 +200,19 @@ def autoencoder_dim_tuning_graph():
 #     with open('autoencoder_scores.txt', 'w') as file:
 #         json.dump(errors, file)
 
-def plot_regularization_curve():
-    data = read_atoms_data()
-    scaledData = data / 10 - 0.5
-    trainData, testData = train_test_split(scaledData)
-    
-    betaVals = np.logspace(-20,2,10)
-    trainScores = []
-    testScores = []
-    with tf.Session() as sess:
-        Autoencoder.tf_session = sess
-        for beta in betaVals:
-            auto = Autoencoder([scaledData.shape[1],10,7], beta=beta)
-            auto.fit(trainData)
-            trainScores.append(-1*auto.score(trainData))
-            testScores.append(-1*auto.score(testData))
-    plt.loglog(betaVals, trainScores, label="Training error")
-    plt.loglog(betaVals, testScores, label="Test error")
-    plt.title('Regularization curve for autoencoder')
-    plt.xlabel('Regularization coefficient')
-    plt.ylabel('RMSE')
-    plt.legend(loc='best')
-    plt.savefig('RegularizationCurve.png')
-
-def read_atoms_data():
-    with open('ATOMS', 'r') as file:
+def read_atoms_data(filename='ATOMS'):
+    with open(str(filename), 'r') as file:
         atomsData = json.load(file)
     return np.array(atomsData)
 
 if __name__ == '__main__':
     print('STARTED!')
 #     autoencoder_dim_tuning_graph()
-    plot_regularization_curve()
+#     print(sys.path)
+#     AutoencoderRegularizer().run()
+    AutoencoderRegularizer.plot_regularization_curve()
+#     with open('TEST', mode='w') as testFile:
+#         print('It worked!',file=testFile)
+#     plot_regularization_curve()
 #     test_output_molecules(get_test_molecules())
     print('DONE WITHOUT ERROR')

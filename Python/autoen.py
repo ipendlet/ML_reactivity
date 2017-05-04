@@ -28,7 +28,7 @@ class Autoencoder(BaseEstimator):
         self.bias = bias
         self.beta = beta
         
-    def fit(self, train_data, n_epochs=10000):
+    def fit(self, train_data, n_epochs=1000000):
         self._ae = self.autoencoder(dimensions=self.dimensions,bias1=self.bias)
         self._learning_rate = 0.005
         self._optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self._ae['cost'])
