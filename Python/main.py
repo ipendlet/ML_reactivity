@@ -8,6 +8,8 @@ from sklearn import linear_model as lm, svm, grid_search as gs
 import sklearn as skl
 from sklearn import cross_validation as cv, preprocessing as pre
 from sklearn.cross_validation import KFold
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import stats
 
@@ -29,7 +31,7 @@ def readFromFile(fName):
     brkAtom1 = []
     brkAtom2 = []
     reactions = []
-    for line in fileinput.input(fName):
+    for line in fileinput.input(str(fName)):
         # collapse multiple whitespaces into one
         lineSpaceCollapsed = re.sub( '\s+', ' ', line).strip()
         # split string based on spaces
@@ -212,12 +214,13 @@ def plotScatterPlot(inputX1, inputX2, outFileName):
     m, b = np.polyfit(inputX1, inputX2, 1)
     X_plot = np.linspace(axes.get_xlim()[0],axes.get_xlim()[1],100)
     plt.plot(X_plot, m*X_plot + b, '-')
-    plt.ylabel('Predicted values')
     plt.xlabel('True values')
-    plt.title('Scatter plot of true vs. predcited values')
-    plt.savefig(outFileName + '.png')
+    plt.ylabel('Predicted values')
+    plt.title('Scatter plot of true vs. predicted values')
+    plt.axis([0,200,0,200])
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.savefig(str(outFileName) + '.png')
     plt.clf()
-
 
 def main():
     # TODO: add error checking

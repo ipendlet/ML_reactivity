@@ -22,14 +22,14 @@ elist_s = [ '[H]', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
 
 class Autoencoder(BaseEstimator):
     tf_session = None
-    def __init__(self, dimensions, bias=[], beta=0):
+    def __init__(self, hiddenDims=[10,7], bias=[], beta=0):
         'beta is l2 regularization coefficient for neural network node weights'
-        self.dimensions = dimensions
+        self.hiddenDims = hiddenDims
         self.bias = bias
         self.beta = beta
         
-    def fit(self, train_data, n_epochs=1000000):
-        self._ae = self.autoencoder(dimensions=self.dimensions,bias1=self.bias)
+    def fit(self, train_data, y=None, n_epochs=20000):
+        self._ae = self.autoencoder(dimensions=[train_data.shape[1]] + self.hiddenDims, bias1=self.bias)
         self._learning_rate = 0.005
         self._optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self._ae['cost'])
         'train an autoencoder using the data given as input'
@@ -39,15 +39,14 @@ class Autoencoder(BaseEstimator):
             if (epoch_i%1000==0):
                 cost1 = Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: train_data})
                 print(epoch_i, cost1)
-            if (cost1<0.001):
-                break
+        return self
     
-    def predict(self, data):
+    def transform(self, data, y=None):
         'compute the latent representation of some data'
-        latent = Autoencoder.tf_session.run(['z'], feed_dict={self._ae['x']: data})
+        latent = Autoencoder.tf_session.run(self._ae['z'], feed_dict={self._ae['x']: data})
         return latent
     
-    def score(self, test_data):
+    def score(self, test_data, y=None):
         'compute the root mean square reconstruction error for some test data'
         cost = Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: test_data})
         return -1 * np.sqrt(cost / test_data.shape[0])
@@ -356,6 +355,7 @@ def do_nn(knn):
 
 ########################
 if __name__ == '__main__':
+    pass
     #test_ob(4)
     #test_smiles()
-    do_nn(3)
+#     do_nn(3)

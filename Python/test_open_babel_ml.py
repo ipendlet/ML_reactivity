@@ -1,21 +1,34 @@
+import glob
+import json
+import os
+from pathlib import Path
 from subprocess import run, call
+import sys
+from textwrap import dedent
+
+from sklearn.linear_model.base import LinearRegression
+from sklearn.linear_model.ridge import RidgeCV
+from sklearn.model_selection import validation_curve
+from sklearn.model_selection._split import KFold
+from sklearn.model_selection._validation import cross_val_score
+from sklearn.neighbors import NearestNeighbors
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import normalize
+from sklearn.preprocessing.data import MinMaxScaler
+from sklearn.svm.classes import SVR
+from sklearn.utils import shuffle
+from sklearn.utils.estimator_checks import check_estimator
+from tensorflow.contrib.learn.python.learn.estimators._sklearn import train_test_split
+
+from autoen import Autoencoder
+from bp_setup import archive_path
+import main
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import pybel as pb
-from pathlib import Path
-import os
-import glob
-from sklearn.neighbors import NearestNeighbors
-from sklearn.preprocessing import normalize
-from autoen import test_ob, Autoencoder
-import matplotlib.pyplot as plt
-import json
 import tensorflow as tf
-from sklearn.model_selection._validation import cross_val_score
-from sklearn.model_selection._split import KFold
-from tensorflow.contrib.learn.python.learn.estimators._sklearn import train_test_split
-from textwrap import dedent
-from bp_setup import archive_path
-import sys
 
 class AutoencoderRegularizer():
     @classmethod
@@ -31,7 +44,7 @@ class AutoencoderRegularizer():
         return (Path.home() / 'Molecules' / 'ReactivityMLTestData' / 'AutoencoderRegularization')
     
     def setup_jobs(self):
-        betaVals = np.logspace(-20,2,20)
+        betaVals = np.logspace(-4,0,10)
         runPath = self.get_path() / 'LatestRun'
         archive_path(runPath)
         runPath.mkdir()
@@ -49,7 +62,7 @@ class AutoencoderRegularizer():
         qshFilename = 'submit.qsh'
         with (Path.cwd() / qshFilename).open(mode='x') as qshFile:
             pbsDirectives = dedent('''\
-            #PBS -l nodes=1:ppn=1 -l walltime=6:00:00
+            #PBS -l nodes=1:ppn=1 -l walltime=12:00:00
             #PBS -q zimmerman -N TensorFlow
             ''')
             print(pbsDirectives, file=qshFile)
@@ -62,30 +75,32 @@ class AutoencoderRegularizer():
     
     def run_autoencoder(self, beta):
         'beta is l2 regularization parameter'
-        data = read_atoms_data(self.get_path() / 'ATOMS')
+        data = shuffle(read_atoms_data(self.get_path() / 'ATOMS'), random_state=40)
         scaledData = data / 10 - 0.5
-        trainData, testData = train_test_split(scaledData)
         
         with tf.Session() as sess:
             Autoencoder.tf_session = sess
-            auto = Autoencoder([scaledData.shape[1],10,7], beta=beta)
-            auto.fit(trainData)
+            auto = Autoencoder()
+            # not actually scanning over beta values within this function but validation curve utility is still useful
+            train_scores, test_scores = validation_curve(auto, scaledData, y=None, param_name='beta', param_range=[beta], cv=5)
             with open('scores', 'x') as scoresFile:
-                scores = [-1*auto.score(trainData),-1*auto.score(testData)]
+                scores = [beta,-10.0*np.mean(train_scores),-10.0*np.mean(test_scores)]
                 json.dump(scores, scoresFile)
 
     @classmethod
     def plot_regularization_curve(cls):
         'take errors from a collection of TensorFlow runs and produce test vs train error graph'
-        betaVals = np.logspace(-20,2,20)
+        betaVals = []
         trainScores = []
         testScores = []
-        for i, beta in enumerate(betaVals):
-            os.chdir(str(cls().get_path() / 'LatestRun' / str(i)))
+        for dir in (cls().get_path() / 'LatestRun').iterdir():
+            os.chdir(str(dir))
             with open('scores', 'r') as scoresFile:
                 scores = json.load(scoresFile)
-            trainScores.append(scores[0])
-            testScores.append(scores[1])
+            betaVals.append(scores[0])
+            trainScores.append(scores[1])
+            testScores.append(scores[2])
+        betaVals, trainScores, testScores = zip(*sorted(zip(betaVals,trainScores,testScores)))
         plt.loglog(betaVals, trainScores, label="Training error")
         plt.loglog(betaVals, testScores, label="Test error")
         plt.title('Regularization curve for autoencoder')
@@ -187,7 +202,7 @@ def autoencoder_dim_tuning_graph():
             errors.append([])
             latentLayerDims = range(4,layer1Dim+1)
             for latentLayerDim in latentLayerDims:
-                auto = Autoencoder([data.shape[1],layer1Dim,latentLayerDim])
+                auto = Autoencoder(hiddenDims=[layer1Dim,latentLayerDim])
                 errors[-1].append(-10.0 * np.mean(cross_val_score(auto, scaledData, cv=kFold)))
             plt.semilogy(latentLayerDims,errors[-1],label=layer1Dim)
     print(errors)
@@ -205,14 +220,45 @@ def read_atoms_data(filename='ATOMS'):
         atomsData = json.load(file)
     return np.array(atomsData)
 
+def test_ml_pipeline():
+    
+    # read in Paul's data
+#     testDataFile = (Path.home() / 'Molecules' / 'ReactivityMLTestData' / 'MLPipelineTesting'
+#                     / 'xydata_set1')
+    testDataFile = (Path.home() / 'Box Sync' / 'Eecs545FinalProject' / 'data' / 'xydata_set1')
+    reactions = main.readFromFile(testDataFile)
+    
+    # generate base features
+    reactionData = np.array([reaction.buildFeatureVector(includeChargeMult=True) for reaction in reactions])
+    targets = np.asarray([reaction._activationEnergy for reaction in reactions])
+    
+    # train / test split
+    trainData, testData, trainTargets, testTargets = train_test_split(reactionData, targets)
+    
+    # make a pipeline with preprocessing, autoencoder, regression
+    scaler = MinMaxScaler(feature_range=(-0.5,0.5))
+    with tf.Session() as sess:
+        Autoencoder.tf_session = sess
+        autoencoder = Autoencoder(hiddenDims=[50,40],beta=0.1)
+        regressor = SVR(C=10000)
+        
+        mlPipeline = make_pipeline(scaler, autoencoder, regressor)
+#         mlPipeline = make_pipeline(autoencoder, regressor)
+        
+        mlPipeline.fit(trainData, trainTargets)
+        trainPredictions = mlPipeline.predict(trainData)
+        testPredictions = mlPipeline.predict(testData)
+        
+    # make plot of predicted values vs actual values
+    main.plotScatterPlot(trainTargets, trainPredictions, Path.home() / 'Desktop' / 'PredictedVsActualTrain')
+    main.plotScatterPlot(testTargets, testPredictions, Path.home() / 'Desktop' / 'PredictedVsActualTest')
+
 if __name__ == '__main__':
     print('STARTED!')
 #     autoencoder_dim_tuning_graph()
 #     print(sys.path)
 #     AutoencoderRegularizer().run()
-    AutoencoderRegularizer.plot_regularization_curve()
-#     with open('TEST', mode='w') as testFile:
-#         print('It worked!',file=testFile)
-#     plot_regularization_curve()
+#     AutoencoderRegularizer.plot_regularization_curve()
 #     test_output_molecules(get_test_molecules())
+    test_ml_pipeline()
     print('DONE WITHOUT ERROR')
