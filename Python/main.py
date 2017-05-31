@@ -204,21 +204,24 @@ def plotRegularizationGraph(alphaVals, regScores):
     plt.legend(loc='best')
     plt.savefig('Regularization curve.png')
 
-def plotScatterPlot(inputX1, inputX2, outFileName):
+def plotScatterPlot(actual, predicted, outFileName):
     'Make a scatter plot showing the predicted vs actual activation energy for each reaction'
-    plt.scatter(inputX1, inputX2) #, color='b', s=121/2, alpha=.4)
+    plt.scatter(actual, predicted) #, color='b', s=121/2, alpha=.4)
     axes = plt.gca()
-    slope, intercept, r_value, p_value, std_err = stats.linregress(inputX1, inputX2)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(actual, predicted)
     rSquared = r_value**2
     plt.annotate('$R^2 = $'+str(rSquared), xy=(1,4), xytext=(1, 4), textcoords='figure points')
-    m, b = np.polyfit(inputX1, inputX2, 1)
+    m, b = np.polyfit(actual, predicted, 1)
     X_plot = np.linspace(axes.get_xlim()[0],axes.get_xlim()[1],100)
     plt.plot(X_plot, m*X_plot + b, '-')
     plt.xlabel('True values')
     plt.ylabel('Predicted values')
     plt.title('Scatter plot of true vs. predicted values')
+    
+    # make plot square with equal x and y axes
     plt.axis([0,200,0,200])
     plt.gca().set_aspect('equal', adjustable='box')
+    
     plt.savefig(str(outFileName) + '.png')
     plt.clf()
 

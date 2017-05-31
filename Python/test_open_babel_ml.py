@@ -10,7 +10,8 @@ from sklearn.linear_model.base import LinearRegression
 from sklearn.linear_model.ridge import RidgeCV
 from sklearn.model_selection import validation_curve
 from sklearn.model_selection._split import KFold
-from sklearn.model_selection._validation import cross_val_score
+from sklearn.model_selection._validation import cross_val_score,\
+    cross_val_predict
 from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import normalize
@@ -24,69 +25,119 @@ from autoen import Autoencoder
 from bp_setup import archive_path
 import main
 import matplotlib as mpl
+from builtins import range
+from sklearn.metrics.regression import mean_absolute_error, r2_score
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pybel as pb
 import tensorflow as tf
 
-class AutoencoderRegularizer():
+class MLParameterTuner():
+    dims = list(range(2,51,4))
+    
     @classmethod
-    def run(cls):
-        if (len(sys.argv) == 2):
-            'execute the autoencoder for the appropriate beta value'
-            cls().run_autoencoder(float(sys.argv[1]))
-        elif (len(sys.argv) == 1):
-            'setup the jobs for the autoencoder'
-            cls().setup_jobs()
+    def run(cls, executionStage='submit_training'):
+        if (executionStage == 'submit_training'):
+            'submit PBS jobs for individual autoencoder dimensions'
+            cls().submit_training_jobs()
+        elif (executionStage == 'compile_results'):
+            'execute training and testing for a particular autoencoder dimension'
+            cls().compile_results()
+        else: raise ValueError('Invalid value for executionStage')    
     
-    def get_path(self):
-        return (Path.home() / 'Molecules' / 'ReactivityMLTestData' / 'AutoencoderRegularization')
-    
-    def setup_jobs(self):
-        betaVals = np.logspace(-4,0,10)
-        runPath = self.get_path() / 'LatestRun'
-        archive_path(runPath)
-        runPath.mkdir()
-        
-        for i, beta in enumerate(betaVals):
-            # create a folder for each value of the regularization parameter
-            path = (runPath / str(i))
-            path.mkdir()
-            os.chdir(str(path))
-            self.submit_job(beta)
-    
-    def submit_job(self, beta):
-        print("Current working directory:", Path.cwd())
-        
-        qshFilename = 'submit.qsh'
-        with (Path.cwd() / qshFilename).open(mode='x') as qshFile:
-            pbsDirectives = dedent('''\
-            #PBS -l nodes=1:ppn=1 -l walltime=12:00:00
-            #PBS -q zimmerman -N TensorFlow
-            ''')
-            print(pbsDirectives, file=qshFile)
-            print('cd $PBS_O_WORKDIR', file=qshFile)
-            print('python ~/ReactivityMachineLearning/Python/test_open_babel_ml.py',
-                  beta, file=qshFile)
-            
-        # execute qsub command to submit job to the queue
-        run(['qsub', qshFilename])
-    
-    def run_autoencoder(self, beta):
-        'beta is l2 regularization parameter'
-        data = shuffle(read_atoms_data(self.get_path() / 'ATOMS'), random_state=40)
-        scaledData = data / 10 - 0.5
-        
-        with tf.Session() as sess:
-            Autoencoder.tf_session = sess
-            auto = Autoencoder()
-            # not actually scanning over beta values within this function but validation curve utility is still useful
-            train_scores, test_scores = validation_curve(auto, scaledData, y=None, param_name='beta', param_range=[beta], cv=5)
-            with open('scores', 'x') as scoresFile:
-                scores = [beta,-10.0*np.mean(train_scores),-10.0*np.mean(test_scores)]
-                json.dump(scores, scoresFile)
+    def get_path(self, dim=None):
+        'returns the appropriate directory on athena for these jobs or a particular job'
+        path = (Path.home() / 'Molecules' / 'ReactivityMLTestData' / 'MLPipelineTesting'
+                / 'LatestRun')
+        if(dim != None): path /= 'Dim' + str(dim)
+        return path
 
+    def submit_training_jobs(self):
+        archive_path(self.get_path())
+        self.get_path().mkdir()
+        
+        for dim in MLParameterTuner.dims:
+            # create a folder and submit a job for each value of the autoencoder dimension
+            self.get_path(dim).mkdir()
+            os.chdir(str(self.get_path(dim)))
+        
+            print("Current working directory:", Path.cwd())
+            qshFilename = 'submit.qsh'
+            with (Path.cwd() / qshFilename).open(mode='x') as qshFile:
+                pbsDirectives = dedent('''\
+                #PBS -l nodes=1:ppn=1 -l walltime=1:00:00
+                #PBS -q zimmerman -N TensorFlow
+                ''')
+                print(pbsDirectives, file=qshFile)
+                print('cd $PBS_O_WORKDIR', file=qshFile)
+                print("python -c 'import test_open_babel_ml; test_open_babel_ml.MLParameterTuner().individual_training_executor("
+                      + str(dim) + ")'",
+                      file=qshFile)
+                
+            # execute qsub command to submit job to the queue
+            run(['qsub', qshFilename])
+
+    def individual_training_executor(self, dim):
+        # make a pipeline with preprocessing, autoencoder, regression
+        scaler = MinMaxScaler(feature_range=(-0.5,0.5))
+        autoencoder = Autoencoder(logPath=self.get_path(dim), hiddenDims=[50,dim],beta=0.1)
+        mlPipeline = make_pipeline(scaler, autoencoder)
+        
+        # read in the data and train the autoencoder
+        data, targets = self.read_mopac_reactivity_data()
+        mlPipeline.fit(data, targets)
+        
+        # test the accuracy of an SVM on the transformed data using cross validation
+        latent = mlPipeline.transform(data)
+        regressor = SVR(C=10000)
+        cross_validator = KFold(n_splits=5, shuffle=True, random_state=40)
+        predictions = cross_val_predict(regressor, latent, targets, cv=cross_validator)
+        
+        # make a cross_val_predict-ed vs actual graph
+        main.plotScatterPlot(targets, predictions, 'predictedVsActual')
+        
+        # print the cross validation actual and predicted targets to file
+        actualThenPredicted = np.array([targets, predictions])
+        np.savetxt('actualThenPredicted.txt', actualThenPredicted)
+        
+    def read_mopac_reactivity_data(self):
+        # read in Paul's data
+        dataFile = self.get_path().parent / 'xydata_set1'
+#         dataFile = (Path.home() / 'Box Sync' / 'Eecs545FinalProject' / 'data' / 'xydata_set1')
+        
+        reactions = main.readFromFile(dataFile)
+        
+        # generate base features
+        reactionData = np.array([reaction.buildFeatureVector(includeChargeMult=True) for reaction in reactions])
+        targets = np.asarray([reaction._activationEnergy for reaction in reactions])
+        return reactionData, targets
+        
+    def compile_results(self):
+        # compute the average absolute error and R^2 at each autoencoder dimension
+        avgAbsErrors = []
+        r2Values = []
+        for dim in MLParameterTuner.dims:
+            actualThenPredicted = np.loadtxt(str(self.get_path(dim) / 'actualThenPredicted.txt'))
+            avgAbsErrors.append(mean_absolute_error(actualThenPredicted[0], actualThenPredicted[1]))
+            r2Values.append(r2_score(actualThenPredicted[0], actualThenPredicted[1]))
+            
+        # make plots with matplotlib
+        plt.plot(MLParameterTuner.dims, avgAbsErrors)
+        plt.ylim(0,20)
+        plt.title('ML pipeline tuning: scan over autoencoder dimension')
+        plt.xlabel('Latent representation dimension')
+        plt.ylabel('SVM cross validation avg absolute error')
+        plt.savefig(str(Path.home() / 'Desktop' / 'AvgAbsErrorVsDim.png'))
+        plt.gcf().clear()
+        
+        plt.plot(MLParameterTuner.dims, r2Values)
+        plt.ylim(0,1)
+        plt.title('ML pipeline tuning: scan over autoencoder dimension')
+        plt.xlabel('Latent representation dimension')
+        plt.ylabel('SVM cross validation R^2')
+        plt.savefig(str(Path.home() / 'Desktop' / 'R2VsDim.png'))
+        
     @classmethod
     def plot_regularization_curve(cls):
         'take errors from a collection of TensorFlow runs and produce test vs train error graph'
@@ -194,17 +245,15 @@ def autoencoder_dim_tuning_graph():
     kFold = KFold(n_splits=5, shuffle=True)
     errors = []
     
-    with tf.Session() as sess:
-        Autoencoder.tf_session = sess
-#         for layer1Dim in range(6,16):
-        for layer1Dim in range(4,5):
-            print('LAYER 1 DIMENSIONALITY: ', layer1Dim)
-            errors.append([])
-            latentLayerDims = range(4,layer1Dim+1)
-            for latentLayerDim in latentLayerDims:
-                auto = Autoencoder(hiddenDims=[layer1Dim,latentLayerDim])
-                errors[-1].append(-10.0 * np.mean(cross_val_score(auto, scaledData, cv=kFold)))
-            plt.semilogy(latentLayerDims,errors[-1],label=layer1Dim)
+#     for layer1Dim in range(6,16):
+    for layer1Dim in range(4,5):
+        print('LAYER 1 DIMENSIONALITY: ', layer1Dim)
+        errors.append([])
+        latentLayerDims = range(4,layer1Dim+1)
+        for latentLayerDim in latentLayerDims:
+            auto = Autoencoder(hiddenDims=[layer1Dim,latentLayerDim])
+            errors[-1].append(-10.0 * np.mean(cross_val_score(auto, scaledData, cv=kFold)))
+        plt.semilogy(latentLayerDims,errors[-1],label=layer1Dim)
     print(errors)
     # create plot of errors and write them to a file in case I need to tweak the plot
 #     plt.title('Searching for intrinsic dimensionality of sample data')
@@ -220,45 +269,10 @@ def read_atoms_data(filename='ATOMS'):
         atomsData = json.load(file)
     return np.array(atomsData)
 
-def test_ml_pipeline():
-    
-    # read in Paul's data
-#     testDataFile = (Path.home() / 'Molecules' / 'ReactivityMLTestData' / 'MLPipelineTesting'
-#                     / 'xydata_set1')
-    testDataFile = (Path.home() / 'Box Sync' / 'Eecs545FinalProject' / 'data' / 'xydata_set1')
-    reactions = main.readFromFile(testDataFile)
-    
-    # generate base features
-    reactionData = np.array([reaction.buildFeatureVector(includeChargeMult=True) for reaction in reactions])
-    targets = np.asarray([reaction._activationEnergy for reaction in reactions])
-    
-    # train / test split
-    trainData, testData, trainTargets, testTargets = train_test_split(reactionData, targets)
-    
-    # make a pipeline with preprocessing, autoencoder, regression
-    scaler = MinMaxScaler(feature_range=(-0.5,0.5))
-    with tf.Session() as sess:
-        Autoencoder.tf_session = sess
-        autoencoder = Autoencoder(hiddenDims=[50,40],beta=0.1)
-        regressor = SVR(C=10000)
-        
-        mlPipeline = make_pipeline(scaler, autoencoder, regressor)
-#         mlPipeline = make_pipeline(autoencoder, regressor)
-        
-        mlPipeline.fit(trainData, trainTargets)
-        trainPredictions = mlPipeline.predict(trainData)
-        testPredictions = mlPipeline.predict(testData)
-        
-    # make plot of predicted values vs actual values
-    main.plotScatterPlot(trainTargets, trainPredictions, Path.home() / 'Desktop' / 'PredictedVsActualTrain')
-    main.plotScatterPlot(testTargets, testPredictions, Path.home() / 'Desktop' / 'PredictedVsActualTest')
-
 if __name__ == '__main__':
-    print('STARTED!')
+    print('Test ML pipeline version 0.1.0')
 #     autoencoder_dim_tuning_graph()
 #     print(sys.path)
-#     AutoencoderRegularizer().run()
-#     AutoencoderRegularizer.plot_regularization_curve()
+    MLParameterTuner().run(executionStage='compile_results')
 #     test_output_molecules(get_test_molecules())
-    test_ml_pipeline()
     print('DONE WITHOUT ERROR')
