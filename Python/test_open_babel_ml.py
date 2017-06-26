@@ -1,37 +1,30 @@
-import glob
+from builtins import range
 import json
 import os
 from pathlib import Path
 from subprocess import run, call
-import sys
 from textwrap import dedent
 
-from sklearn.linear_model.base import LinearRegression
-from sklearn.linear_model.ridge import RidgeCV
-from sklearn.model_selection import validation_curve
-from sklearn.model_selection._split import KFold
-from sklearn.model_selection._validation import cross_val_score,\
+from sklearn.metrics.regression import mean_absolute_error, r2_score
+from sklearn.model_selection._split import KFold, train_test_split
+from sklearn.model_selection._validation import cross_val_score, \
     cross_val_predict
 from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import normalize
 from sklearn.preprocessing.data import MinMaxScaler
 from sklearn.svm.classes import SVR
-from sklearn.utils import shuffle
-from sklearn.utils.estimator_checks import check_estimator
-from tensorflow.contrib.learn.python.learn.estimators._sklearn import train_test_split
 
 from autoen import Autoencoder
 from bp_setup import archive_path
 import main
 import matplotlib as mpl
-from builtins import range
-from sklearn.metrics.regression import mean_absolute_error, r2_score
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pybel as pb
-import tensorflow as tf
+from reactivity_data_loader import ReactivityDataLoader
+
+
+mpl.use('Agg')
 
 class MLParameterTuner():
     dims = list(range(2,51,4))
@@ -100,19 +93,7 @@ class MLParameterTuner():
         # print the cross validation actual and predicted targets to file
         actualThenPredicted = np.array([targets, predictions])
         np.savetxt('actualThenPredicted.txt', actualThenPredicted)
-        
-    def read_mopac_reactivity_data(self):
-        # read in Paul's data
-        dataFile = self.get_path().parent / 'xydata_set1'
-#         dataFile = (Path.home() / 'Box Sync' / 'Eecs545FinalProject' / 'data' / 'xydata_set1')
-        
-        reactions = main.readFromFile(dataFile)
-        
-        # generate base features
-        reactionData = np.array([reaction.buildFeatureVector(includeChargeMult=True) for reaction in reactions])
-        targets = np.asarray([reaction._activationEnergy for reaction in reactions])
-        return reactionData, targets
-        
+                
     def compile_results(self):
         # compute the average absolute error and R^2 at each autoencoder dimension
         avgAbsErrors = []
@@ -199,21 +180,6 @@ def test_output_molecules(molecules):
     conv.SetOneObjectOnly(True)
     outFormat.WriteChemObject(conv)
     
-#     svg = conv.WriteString(molecule)
-#     print(svg)
-#     emptyList = ['']
-#     a = pb.ob.vectorString(['test.smi'])
-#     b = pb.ob.vectorString(['b'])
-#     c = pb.ob.stringbuf()
-#     conv.FullConvert(['abc','def'],'testMolecules.png',['react' + str(i) + '.xyz' for i in range(1,7)])
-#     conv.FullConvert(a,'',b)
-#     print(b)
-#     outPbFile = pb.Outputfile('svg','testMolecules.svg',overwrite=True)
-#     for currentMolecule in molecules:
-#         outPbFile.write(currentMolecule)
-#     outPbFile.close()
-    # print(spectrophores)
-
 def get_test_molecules():
     os.chdir(str(Path.home() / 'Molecules' / 'TestMLData'))
     molecules = []
@@ -269,10 +235,20 @@ def read_atoms_data(filename='ATOMS'):
         atomsData = json.load(file)
     return np.array(atomsData)
 
+def test_ml_pipeline():
+    'load a test data set, run SVM on it, and plot the predictions vs the actual values'
+    data, targets = ReactivityDataLoader().load_mopac_learning()
+    regressor = SVR(C=1000)
+    trainData, testData, trainTargets, testTargets = train_test_split(data, targets)
+    regressor.fit(trainData, trainTargets)
+    os.chdir(str(Path.home() / 'Desktop'))
+    main.plotScatterPlot(testTargets, regressor.predict(testData), 'predictedVsActual')
+
 if __name__ == '__main__':
-    print('Test ML pipeline version 0.1.0')
+    print('Test ML pipeline version 0.1.1')
+    test_ml_pipeline()
 #     autoencoder_dim_tuning_graph()
 #     print(sys.path)
-    MLParameterTuner().run(executionStage='compile_results')
+#     MLParameterTuner().run(executionStage='compile_results')
 #     test_output_molecules(get_test_molecules())
     print('DONE WITHOUT ERROR')

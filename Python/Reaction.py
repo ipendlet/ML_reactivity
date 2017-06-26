@@ -1,12 +1,13 @@
 import numpy as np
-from itertools import combinations, combinations_with_replacement
+from itertools import combinations_with_replacement
+from DrivingCoordinate import DriveCoordType
 
 class Reaction():
     '''
     A class representing a chemical reaction
     '''
 
-    def __init__(self, id=None, activationEnergy=None, heatOfRxn=None):
+    def __init__(self, id=None, activationEnergy=None, heatOfRxn=None, reactants=None):
         '''
         Constructor
         '''
@@ -15,6 +16,7 @@ class Reaction():
         self._activationEnergy = activationEnergy
         self._heatOfRxn = heatOfRxn
         self._drivingCoordinates = []
+        self._reactants = reactants # currently only expecting a single pybel molecule
         # TODO: add miscellaneous values (the ones in the dataset not associated with an
         # add or break move)
 
@@ -26,8 +28,8 @@ class Reaction():
         Sort the atoms within each driving coordinate and then sort the driving coordinates
         by the lower of the 2 charges associated with each
         '''
-        addMoves = self.movesOfType('add')
-        breakMoves = self.movesOfType('break')
+        addMoves = self.movesOfType(DriveCoordType.ADD)
+        breakMoves = self.movesOfType(DriveCoordType.BREAK)
         for addMove in addMoves:
             addMove.sortByCharge()
         for breakMove in breakMoves:
@@ -57,8 +59,8 @@ class Reaction():
         if isSorted:
             addMoves, breakMoves = self.sortDrivingCoordinates()
         else:
-            addMoves = self.movesOfType('add')
-            breakMoves = self.movesOfType('break')
+            addMoves = self.movesOfType(DriveCoordType.ADD)
+            breakMoves = self.movesOfType(DriveCoordType.BREAK)
         
         featureVector = np.zeros((40))
         featureVecChargeMult = np.zeros((10))
@@ -107,13 +109,13 @@ class Reaction():
         chargeMultFeatures = np.zeros((len(possibleBonds)*2))
         for coordinate in self._drivingCoordinates:
             index = possibleBonds.index(tuple(sorted(coordinate._Atoms)))
-            if coordinate._Type == 'add':
+            if coordinate._Type == DriveCoordType.ADD:
                 if existenceFeatures[index] == 1:
                     chargeMultFeatures[index] = max(chargeMultFeatures[index], coordinate.chargeProduct())
                 else:
                     chargeMultFeatures[index] = coordinate.chargeProduct()
                     existenceFeatures[index] = 1
-            elif coordinate._Type == 'break':
+            elif coordinate._Type == DriveCoordType.BREAK:
                 index += len(possibleBonds) # break move indices start where add move indices end
                 if existenceFeatures[index] == 1:
                     chargeMultFeatures[index] = min(chargeMultFeatures[index], coordinate.chargeProduct())
@@ -122,3 +124,21 @@ class Reaction():
                     existenceFeatures[index] = 1
             else: raise Exception('Invalid coordinate type!')
         return np.concatenate((existenceFeatures, chargeMultFeatures))
+
+    def build_atom_rep_feature_vec(self):
+        '''
+        Builds feature vector representing this reaction using representations of the atoms
+        involved in the GSM driving coordinates
+        '''
+        featureVec = []
+        for type in DriveCoordType:
+            coordReps = np.array([coord.build_atom_rep_feature_vec() for coord in self.movesOfType(type)])
+            if coordReps.size:
+                featureVec += list(np.max(coordReps, axis=0))
+                featureVec += list(np.min(coordReps, axis=0))  
+                featureVec += list(np.mean(coordReps, axis=0))
+                featureVec.append(coordReps.shape[0])
+            else:
+                featureVec += [0] * 115 # DON'T COMMIT THIS
+        return np.array(featureVec)      
+    

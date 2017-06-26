@@ -1,14 +1,15 @@
 import sys
 import fileinput
-from DrivingCoordinate import DrivingCoordinate
+from DrivingCoordinate import DrivingCoordinate, DriveCoordType
 from Reaction import Reaction
 import re
 import numpy as np
-from sklearn import linear_model as lm, svm, grid_search as gs
-import sklearn as skl
-from sklearn import cross_validation as cv, preprocessing as pre
-from sklearn.cross_validation import KFold
+from sklearn import linear_model as lm, svm
+from sklearn import preprocessing as pre
 import matplotlib as mpl
+from sklearn.metrics.regression import r2_score
+from sklearn.model_selection._split import KFold
+from sklearn.model_selection._search import GridSearchCV
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import stats
@@ -65,12 +66,12 @@ def readFromFile(fName):
                 brkNBO = [float(elem) for elem in lineSpaceSplit[20:30]]
                 brkHybrid = [float(elem) for elem in lineSpaceSplit[30:40]]
                 for i in range(len(typeAdd)):
-                    reactions[-1].addDrivingCoordinate(DrivingCoordinate(Type='add',
+                    reactions[-1].addDrivingCoordinate(DrivingCoordinate(Type=DriveCoordType.ADD,
                             Atoms=[addAtom1[i],addAtom2[i]], NBO=addNBO[2*i:2*i+2],
                             Hybrid=addHybrid[2*i:2*i+2]))
                     #print ("add", reactions[-1]._drivingCoordinates[-1].__dict__)
                 for i in range(len(typeBrk)):
-                    reactions[-1].addDrivingCoordinate(DrivingCoordinate(Type='break',
+                    reactions[-1].addDrivingCoordinate(DrivingCoordinate(Type=DriveCoordType.BREAK,
                             Atoms=[brkAtom1[i], brkAtom2[i]], NBO=brkNBO[2*i:2*i+2],
                             Hybrid=brkHybrid[2*i:2*i+2]))
                     #print ("brk", reactions[-1]._drivingCoordinates[-1].__dict__)
@@ -159,7 +160,7 @@ def supportVectorRegression(data, targets):
      ]
 #         {'C': [100, 1000], 'gamma': [0.01], 'kernel': ['rbf']},
 #         {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
-    svrGrid = gs.GridSearchCV(svr, param_grid=param_grid, n_jobs=-1)
+    svrGrid = GridSearchCV(svr, param_grid=param_grid, n_jobs=-1)
     svrGrid.fit(data, targets)
     targetPredicted = svrGrid.predict(data)
     score = svrGrid.score(data, targets)
@@ -206,22 +207,21 @@ def plotRegularizationGraph(alphaVals, regScores):
 
 def plotScatterPlot(actual, predicted, outFileName):
     'Make a scatter plot showing the predicted vs actual activation energy for each reaction'
-    plt.scatter(actual, predicted) #, color='b', s=121/2, alpha=.4)
+    plt.scatter(actual, predicted)
     axes = plt.gca()
-    slope, intercept, r_value, p_value, std_err = stats.linregress(actual, predicted)
-    rSquared = r_value**2
+    
+    # make plot square with equal x and y axes
+    bounds = [min(list(actual) + list(predicted))-1, max(list(actual) + list(predicted))+1]
+    plt.axis(bounds * 2)
+    axes.set_aspect('equal', adjustable='box')
+    
+    plt.plot([bounds[0], bounds[1]], [bounds[0], bounds[1]], '-')
+
+    rSquared = r2_score(actual, predicted)
     plt.annotate('$R^2 = $'+str(rSquared), xy=(1,4), xytext=(1, 4), textcoords='figure points')
-    m, b = np.polyfit(actual, predicted, 1)
-    X_plot = np.linspace(axes.get_xlim()[0],axes.get_xlim()[1],100)
-    plt.plot(X_plot, m*X_plot + b, '-')
     plt.xlabel('True values')
     plt.ylabel('Predicted values')
     plt.title('Scatter plot of true vs. predicted values')
-    
-    # make plot square with equal x and y axes
-    plt.axis([0,200,0,200])
-    plt.gca().set_aspect('equal', adjustable='box')
-    
     plt.savefig(str(outFileName) + '.png')
     plt.clf()
 

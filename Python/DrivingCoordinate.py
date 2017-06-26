@@ -1,5 +1,11 @@
+import numpy as np
+from ml_atom import MLAtom
+from enum import Enum
 
-
+class DriveCoordType(Enum):
+    ADD = 0
+    BREAK = 1
+    
 class DrivingCoordinate:
     def __init__(self, Type=None, Atoms=None, NBO=None, Hybrid=None):
         '''
@@ -15,7 +21,7 @@ class DrivingCoordinate:
             NBO = []
             Hybrid = []
         self._Type = Type
-        self._Atoms = Atoms
+        self._Atoms = [MLAtom(atom) for atom in Atoms]
         self._NBO = NBO
         self._Hybrid = Hybrid
         
@@ -30,3 +36,10 @@ class DrivingCoordinate:
         '''
         self._NBO, self._Atoms, self._Hybrid = zip(*sorted(zip(self._NBO,self._Atoms,
                                                                self._Hybrid),key=lambda x:x[0]))
+    
+    def build_atom_rep_feature_vec(self):
+        'combine the features of the two atoms that make up this driving coordinate'
+        featureVec = np.array([atom.build_atom_rep_feature_vec() for atom in self._Atoms])
+        featureVec.sort(axis=0)
+        return np.flip(featureVec, axis=0).reshape(-1)
+        
