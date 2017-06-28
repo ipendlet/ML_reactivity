@@ -100,6 +100,7 @@ class MLParameterTuner():
         r2Values = []
         for dim in MLParameterTuner.dims:
             actualThenPredicted = np.loadtxt(str(self.get_path(dim) / 'actualThenPredicted.txt'))
+#             main.plotScatterPlot(actualThenPredicted[0], actualThenPredicted[1], self.get_path(dim) / 'predictedVsActual2')
             avgAbsErrors.append(mean_absolute_error(actualThenPredicted[0], actualThenPredicted[1]))
             r2Values.append(r2_score(actualThenPredicted[0], actualThenPredicted[1]))
             
@@ -245,7 +246,8 @@ def test_ml_pipeline():
     main.plotScatterPlot(testTargets, regressor.predict(testData), 'predictedVsActual')
 
 if __name__ == '__main__':
-    print('Test ML pipeline version 0.1.1')
+    print('Test ML pipeline version 0.1.2')
+#     MLParameterTuner().compile_results()
     test_ml_pipeline()
 #     autoencoder_dim_tuning_graph()
 #     print(sys.path)

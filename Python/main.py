@@ -207,21 +207,24 @@ def plotRegularizationGraph(alphaVals, regScores):
 
 def plotScatterPlot(actual, predicted, outFileName):
     'Make a scatter plot showing the predicted vs actual activation energy for each reaction'
-    plt.scatter(actual, predicted)
+    plt.scatter(actual, predicted, s=8)
     axes = plt.gca()
     
     # make plot square with equal x and y axes
-    bounds = [min(list(actual) + list(predicted))-1, max(list(actual) + list(predicted))+1]
+    bounds = [min(list(actual) + list(predicted) + [0])-1, max(list(actual) + list(predicted))+1]
     plt.axis(bounds * 2)
     axes.set_aspect('equal', adjustable='box')
     
-    plt.plot([bounds[0], bounds[1]], [bounds[0], bounds[1]], '-')
+    # plot the identity for visual reference (10% darker than data)
+    plt.plot([bounds[0], bounds[1]], [bounds[0], bounds[1]], color='#065E9B')
 
     rSquared = r2_score(actual, predicted)
-    plt.annotate('$R^2 = $'+str(rSquared), xy=(1,4), xytext=(1, 4), textcoords='figure points')
+    print(rSquared)
+    plt.figtext(0.1,0.01,'$R^2 = $'+format(rSquared,'.4f'))
     plt.xlabel('True values')
     plt.ylabel('Predicted values')
     plt.title('Scatter plot of true vs. predicted values')
+    plt.tight_layout()
     plt.savefig(str(outFileName) + '.png')
     plt.clf()
 
