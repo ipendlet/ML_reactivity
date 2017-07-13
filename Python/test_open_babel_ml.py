@@ -22,7 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pybel as pb
 from reactivity_data_loader import ReactivityDataLoader
-
+from reactivity_data_explorer import ReactivityDataExplorer
+from DrivingCoordinate import DriveCoordType
 
 mpl.use('Agg')
 
@@ -100,7 +101,6 @@ class MLParameterTuner():
         r2Values = []
         for dim in MLParameterTuner.dims:
             actualThenPredicted = np.loadtxt(str(self.get_path(dim) / 'actualThenPredicted.txt'))
-#             main.plotScatterPlot(actualThenPredicted[0], actualThenPredicted[1], self.get_path(dim) / 'predictedVsActual2')
             avgAbsErrors.append(mean_absolute_error(actualThenPredicted[0], actualThenPredicted[1]))
             r2Values.append(r2_score(actualThenPredicted[0], actualThenPredicted[1]))
             
@@ -245,10 +245,16 @@ def test_ml_pipeline():
     os.chdir(str(Path.home() / 'Desktop'))
     main.plotScatterPlot(testTargets, regressor.predict(testData), 'predictedVsActual')
 
+def test_reactivity_data_analysis():
+    'testing function for exploring and visualizing reactivity data'
+    explorer = ReactivityDataExplorer(ReactivityDataLoader().load_mopac_learning(genFeatures=False))
+    explorer.plot_coord_num_dist_for_element_and_move_type(7, DriveCoordType.ADD)
+    
 if __name__ == '__main__':
     print('Test ML pipeline version 0.1.2')
 #     MLParameterTuner().compile_results()
-    test_ml_pipeline()
+#     test_ml_pipeline()
+    test_reactivity_data_analysis()
 #     autoencoder_dim_tuning_graph()
 #     print(sys.path)
 #     MLParameterTuner().run(executionStage='compile_results')

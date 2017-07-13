@@ -11,7 +11,11 @@ class MLAtom():
     Extension of pybel's atom type to return a representation of ML features
     '''
     def __init__(self, atom):
-        self.atom = atom
+        self._atom = atom # expecting pybel atom
+        self.OBAtom = atom.OBAtom
+        self.atomicnum = atom.atomicnum
+        self.valence = atom.valence
+        self.hyb = atom.hyb
         self.atom_rep_feature_vec = self.build_atom_rep_feature_vec()
     
     def build_atom_rep_feature_vec(self):
@@ -23,11 +27,11 @@ class MLAtom():
             return self.atom_rep_feature_vec
         except AttributeError:
             featureVec = []
-            featureVec += self.basic_info(self.atom)
+            featureVec += self.basic_info(self._atom)
             atomFeatureVecs = []
-            for connectedOBAtom in pb.ob.OBAtomAtomIter(self.atom.OBAtom):
+            for connectedOBAtom in pb.ob.OBAtomAtomIter(self._atom.OBAtom):
                 atomFeatureVecs.append(self.basic_info(pb.Atom(connectedOBAtom)))
-                bond = connectedOBAtom.GetBond(self.atom.OBAtom)
+                bond = connectedOBAtom.GetBond(self._atom.OBAtom)
                 atomFeatureVecs[-1].append(bond.GetBondOrder())
             
             # sort by descending atomic num, then other basic info

@@ -19,7 +19,7 @@ class ReactivityDataLoader():
     def __init__(self):
         pass
     
-    def load_mopac_learning(self):
+    def load_mopac_learning(self, genFeatures=True):
         'Load a small molecule reactivity data set that Paul produced with GSM / Zstruct / mopac'
         self.reactions = []
         
@@ -35,9 +35,12 @@ class ReactivityDataLoader():
                 self.read_reaction(dataFileLines[i:i+5])
                 i += 6
         
-        reactionData = np.array([reaction.build_atom_rep_feature_vec() for reaction in self.reactions])
-        targets = np.asarray([reaction._activationEnergy for reaction in self.reactions])
-        return reactionData, targets
+        if genFeatures: # compute features if requested, otherwise just return reactions
+            reactionData = np.array([reaction.build_atom_rep_feature_vec() for reaction in self.reactions])
+            targets = np.asarray([reaction._activationEnergy for reaction in self.reactions])
+            return reactionData, targets
+        else:
+            return self.reactions
         
     def read_reaction(self, reactionLines):
         "read the lines of Paul's file representing an individual reaction"
