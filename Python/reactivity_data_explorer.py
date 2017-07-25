@@ -18,7 +18,7 @@ class ReactivityDataExplorer():
     def __init__(self, reactions):
         self.reactions = reactions
     
-    def plot_coord_num_dist_for_element_and_move_type(self, atomicNum, moveType):
+    def plot_coord_num_dist_for_element_and_move_type(self, atomicNum):
         '''plot the distribution of coordination number for all of a given element involved in
         driving coordinates grouped by driving coordinate type
         '''
@@ -27,10 +27,10 @@ class ReactivityDataExplorer():
         for reaction in self.reactions:
             for driveCoordinate in reaction._drivingCoordinates:
                 for mlAtom in driveCoordinate._Atoms:
-                    if mlAtom.atomicnum == atomicNum:
+                    if mlAtom._atom.atomicnum == atomicNum:
                         coordNumsDataFrame = coordNumsDataFrame.append(DataFrame(
                                 {'move type':[driveCoordinate._Type],
-                                 'coordination number':[mlAtom.valence]}),
+                                 'coordination number':[mlAtom._atom.valence]}),
                                 ignore_index=True)
 
         countplot(x='coordination number', hue='move type', data=coordNumsDataFrame)

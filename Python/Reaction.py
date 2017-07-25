@@ -1,6 +1,6 @@
 import numpy as np
 from itertools import combinations_with_replacement
-from DrivingCoordinate import DriveCoordType
+from DrivingCoordinate import DriveCoordType, DrivingCoordinate
 
 class Reaction():
     '''
@@ -135,10 +135,10 @@ class Reaction():
             coordReps = np.array([coord.build_atom_rep_feature_vec() for coord in self.movesOfType(type)])
             if coordReps.size:
                 featureVec += list(np.max(coordReps, axis=0))
-                featureVec += list(np.min(coordReps, axis=0))  
+                featureVec += list(np.min(coordReps, axis=0))
                 featureVec += list(np.mean(coordReps, axis=0))
                 featureVec.append(coordReps.shape[0])
             else:
-                featureVec += [0] * 115 # DON'T COMMIT THIS
-        return np.array(featureVec)      
+                featureVec += [0] * (DrivingCoordinate.atom_rep_feature_vec_size() * 3 + 1)  
+        return np.array(featureVec)
     

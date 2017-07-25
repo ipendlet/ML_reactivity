@@ -9,6 +9,7 @@ from DrivingCoordinate import DriveCoordType, DrivingCoordinate
 from builtins import range
 import pybel as pb
 import numpy as np
+from ml_atom import MLAtom
 
 class ReactivityDataLoader():
     '''
@@ -50,17 +51,19 @@ class ReactivityDataLoader():
         idNum = int(headerLine[3])
         activationEnergy = float(headerLine[5])
         EofRxn = float(headerLine[7])
-        self.reactions.append(Reaction(idNum,activationEnergy,EofRxn))
         
+        # read xyz file for reactants
         stringFilePath = (self.dataFilePath.parent / 'savestrings'
                           / ('stringfile.xyz' + str(idNum).zfill(4)))
         reactants = next(pb.readfile('xyz', str(stringFilePath)))
+        
+        self.reactions.append(Reaction(idNum, activationEnergy, EofRxn, reactants))
         
         # read add and break lines
         for i, driveCoordType in enumerate(DriveCoordType):
             driveCoordLine = reactionLines[i+1].split()
             for j in range(2,len(driveCoordLine),2):
                 driveCoordIndices = driveCoordLine[j].strip('()').split('-')
-                driveCoordAtoms = [reactants.atoms[int(k)-1] for k in driveCoordIndices]
+                driveCoordAtoms = [MLAtom(reactants.atoms[int(k)-1], reactants) for k in driveCoordIndices]
                 self.reactions[-1].addDrivingCoordinate(DrivingCoordinate(Type=driveCoordType,
                                                                           Atoms=driveCoordAtoms))

@@ -10,7 +10,7 @@ class DrivingCoordinate:
     def __init__(self, Type=None, Atoms=None, NBO=None, Hybrid=None):
         '''
         Type = Add, Brk, None
-        Atoms = pair of atoms being added or broken
+        Atoms = pair of atoms being added or broken (expects MLAtom atoms)
         NBO = 2 element list of charges on the atoms involved in this driving coordinate
         Hybrid = 2 element list of p to s orbital occupancy ratio on each atom in this coordinate
         '''
@@ -21,7 +21,7 @@ class DrivingCoordinate:
             NBO = []
             Hybrid = []
         self._Type = Type
-        self._Atoms = [MLAtom(atom) for atom in Atoms]
+        self._Atoms = Atoms
         self._NBO = NBO
         self._Hybrid = Hybrid
         
@@ -42,4 +42,9 @@ class DrivingCoordinate:
         featureVec = np.array([atom.build_atom_rep_feature_vec() for atom in self._Atoms])
         featureVec.sort(axis=0)
         return np.flip(featureVec, axis=0).reshape(-1)
+
+    @staticmethod
+    def atom_rep_feature_vec_size():
+        return 2 * MLAtom.atom_rep_feature_vec_size()
+
         

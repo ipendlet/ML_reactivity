@@ -250,11 +250,20 @@ def test_reactivity_data_analysis():
     explorer = ReactivityDataExplorer(ReactivityDataLoader().load_mopac_learning(genFeatures=False))
     explorer.plot_coord_num_dist_for_element_and_move_type(7, DriveCoordType.ADD)
     
+def reproduce_open_babel_error():
+    sampleXyzString = '2\n\nH 0 0 0\nH 1 0 0\n'
+    print('Correct: ', pb.readstring('xyz', sampleXyzString).atoms[0].valence)
+    atoms = [pb.readstring('xyz', sampleXyzString).atoms[0] for i in range(100)]
+    for atom in atoms:
+        print(atom.valence, end=' ')
+    for atom in atoms:
+        print(atom.valence, end=' ')
+    
 if __name__ == '__main__':
-    print('Test ML pipeline version 0.1.2')
+    print('Test ML pipeline version 0.1.3')
 #     MLParameterTuner().compile_results()
-#     test_ml_pipeline()
-    test_reactivity_data_analysis()
+    test_ml_pipeline()
+#     test_reactivity_data_analysis()
 #     autoencoder_dim_tuning_graph()
 #     print(sys.path)
 #     MLParameterTuner().run(executionStage='compile_results')
