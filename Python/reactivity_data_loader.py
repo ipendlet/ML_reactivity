@@ -20,14 +20,14 @@ class ReactivityDataLoader():
     def __init__(self):
         pass
     
-    def load_mopac_learning(self, genFeatures=True):
+    def load_mopac_learning(self, dataSetName='formwater_mopac', genFeatures=True):
         'Load a small molecule reactivity data set that Paul produced with GSM / Zstruct / mopac'
         self.reactions = []
         
         # open the appropriate file running on athena or locally
-        self.dataFilePath = Path('~paulzim').expanduser() / 'zstruct2' / 'test' / 'mopac_learning' / 'xydata'
+        self.dataFilePath = Path('~paulzim').expanduser() / 'zstruct2' / 'test' / dataSetName / 'xydata'
         if not self.dataFilePath.exists():
-            self.dataFilePath = Path.home() / 'Desktop' / 'xydata'
+            self.dataFilePath = Path.home() / 'Molecules' / 'TestMLData' / dataSetName / 'xydata'
             
         with self.dataFilePath.open() as dataFile:
             dataFileLines = dataFile.readlines()
