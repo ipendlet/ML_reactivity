@@ -21,35 +21,54 @@ elist_s = [ '[H]', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
            'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar' ]
 
 class Autoencoder(BaseEstimator):
-    tf_session = None
-    def __init__(self, dimensions, bias=[], beta=0):
-        'beta is l2 regularization coefficient for neural network node weights'
-        self.dimensions = dimensions
+    def __init__(self, logPath, hiddenDims=[10,7], bias=[], beta=0):
+        # log path should be a Python Pathlib path
+        self.logPath = logPath
+        self.hiddenDims = hiddenDims
         self.bias = bias
+        # beta is l2 regularization coefficient for neural network node weights
         self.beta = beta
+        self.saveFilename = 'model'
+        with (self.logPath / 'modelSpecs.txt').open(mode='a') as modelSpecFile:
+            print('Autoencoder model parameters: ', file=modelSpecFile)
+            print(self.get_params(), file=modelSpecFile)
         
-    def fit(self, train_data, n_epochs=10000):
-        self._ae = self.autoencoder(dimensions=self.dimensions,bias1=self.bias)
-        self._learning_rate = 0.005
-        self._optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(self._ae['cost'])
-        'train an autoencoder using the data given as input'
-        Autoencoder.tf_session.run(tf.global_variables_initializer())
-        for epoch_i in range(n_epochs):
-            Autoencoder.tf_session.run(self._optimizer, feed_dict={self._ae['x']: train_data})
-            if (epoch_i%1000==0):
-                cost1 = Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: train_data})
-                print(epoch_i, cost1)
-            if (cost1<0.001):
-                break
+    def fit(self, train_data, y=None, n_epochs=50000):            
+        autoencoder = self.autoencoder(dimensions=[train_data.shape[1]] + self.hiddenDims, bias1=self.bias)
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            'train an autoencoder using the data given as input'
+            sess.run(tf.global_variables_initializer())
+            for epoch_i in range(n_epochs):
+                sess.run(self._optimizer, feed_dict={autoencoder['x']: train_data})
+                if (epoch_i%1000==0):
+                    cost1 = sess.run(autoencoder['cost'], feed_dict={autoencoder['x']: train_data})
+                    print(epoch_i, cost1)
+            saver.save(sess, save_path=str(self.logPath / self.saveFilename), global_step=epoch_i)
+        tf.reset_default_graph()
+        with (self.logPath / 'modelSpecs.txt').open(mode='a') as modelSpecFile:
+            print('Number of training iterations:', n_epochs, file=modelSpecFile)
+
+        return self
     
-    def predict(self, data):
-        'compute the latent representation of some data'
-        latent = Autoencoder.tf_session.run(['z'], feed_dict={self._ae['x']: data})
+    def transform(self, data, y=None):
+        autoencoder = self.autoencoder(dimensions=[data.shape[1]] + self.hiddenDims, bias1=self.bias)
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            saver.restore(sess, save_path=tf.train.latest_checkpoint(str(self.logPath)))
+            'compute the latent representation of some data'
+            latent = sess.run(autoencoder['z'], feed_dict={autoencoder['x']: data})
+        tf.reset_default_graph()
         return latent
     
-    def score(self, test_data):
-        'compute the root mean square reconstruction error for some test data'
-        cost = Autoencoder.tf_session.run(self._ae['cost'], feed_dict={self._ae['x']: test_data})
+    def score(self, test_data, y=None):
+        autoencoder = self.autoencoder(dimensions=[test_data.shape[1]] + self.hiddenDims, bias1=self.bias)
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            saver.restore(sess, save_path=tf.train.latest_checkpoint(str(self.logPath)))
+            'compute the root mean square reconstruction error for some test data'
+            cost = sess.run(autoencoder['cost'], feed_dict={autoencoder['x']: test_data})
+        tf.reset_default_graph()
         return -1 * np.sqrt(cost / test_data.shape[0])
 
     def autoencoder(self, dimensions=[15, 100, 100, 15], bias1=[]):
@@ -123,6 +142,9 @@ class Autoencoder(BaseEstimator):
         regularizationLoss *= self.beta
         
         cost = tf.reduce_sum(tf.square(y - x)) + dcost + regularizationLoss
+
+        self._learning_rate = 0.005
+        self._optimizer = tf.train.AdamOptimizer(self._learning_rate).minimize(cost)
         return {'x': x, 'z': z, 'y': y, 'cost': cost}
     ######################################################
 
@@ -356,6 +378,7 @@ def do_nn(knn):
 
 ########################
 if __name__ == '__main__':
+    pass
     #test_ob(4)
     #test_smiles()
-    do_nn(3)
+#     do_nn(3)

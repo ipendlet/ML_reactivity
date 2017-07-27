@@ -3,6 +3,7 @@
 	<name>ReactivityMachineLearning</name>
 	<comment></comment>
 	<projects>
+		<project>BranchingPlaneScripts</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
