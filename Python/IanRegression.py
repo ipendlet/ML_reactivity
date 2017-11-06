@@ -8,26 +8,32 @@ from sklearn.linear_model.base import LinearRegression
 import main
 import scatterPlot
 from sklearn.preprocessing.data import PolynomialFeatures
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 
 if __name__ == '__main__':
     pass
     dataFile = Path.home() / 'Downloads' / 'DataForJosh.csv'
-    data = np.loadtxt(dataFile,delimiter=',',skiprows=1,usecols=(16,18,21,24,8,11,12,9,10))
-#    predictors = np.column_stack((data[:,0]-data[:,1],(data[:,2]+data[:,3])/2,data[:,4],data[:,5],data[:,6]))
-    predictors = np.column_stack((data[:,0]-data[:,1],data[:,2],data[:,3],data[:,4]))
-#    predictors = np.column_stack((data[:,4]))
-
-
-#    predictors = np.column_stack((data[:,0],data[:,2],data[:,3],data[:,4])) #LowdwinH2, Buried, VBuried, pka, r2=0.70951(hyd), r2(h2)=0.2226
-
-
-#    predictors = np.column_stack((data[:,-4],data[:,-3],data[:,4])) #tau,tau,pka r2=0.7004262
 
 
 
-#    hydricities = data[:,-1] #actually for H2binding
-    hydricities = data[:,-2]
+
+    lc = np.loadtxt(dataFile,delimiter=',',skiprows=1,usecols=(16,17,18))
+    therm = np.loadtxt(dataFile,delimiter=',',skiprows=1,usecols=(8,9,10))
+    bv = np.loadtxt(dataFile,delimiter=',',skiprows=1,usecols=(21,24))
+    tau = np.loadtxt(dataFile,delimiter=',',skiprows=1,usecols=(11,12))
+
+
+
+#    predictors = np.column_stack((lc[:,0],lc[:,1],lc[:,2],tau[:,0],tau[:,1]))
+
+
+    predictors = np.column_stack((lc[:,2]-lc[:,1],lc[:,0]-lc[:,2],bv[:,0],bv[:,1]))
+
+
+#    predictors = np.column_stack((lc[:,0]-lc[:,2],bv[:,0],bv[:,1],therm[:,0]))
+
+    hydricities = therm[:,2]
 
     # compound features
     polyFeatures = PolynomialFeatures(degree=2,interaction_only=True)
@@ -35,8 +41,59 @@ if __name__ == '__main__':
 #    regressor = LinearRegression()
 
     regressor.fit(predictors, hydricities)
-    predictions = regressor.predict(predictors)
+    print(regressor.steps[1][1].coef_)
+    print(regressor.steps[1][1].intercept_)
+    print(polyFeatures.get_feature_names())
     print('R^2: ', regressor.score(predictors, hydricities))
-    scatterPlot.plotScatterPlot(hydricities, predictions, (Path.home() / 'Desktop' / 'ianPredictions'))
-#    print(regressor.coef_,regressor.intercept_)
+    predictions = regressor.predict(predictors)
+    scatterPlot.h2binding(hydricities, predictions, (Path.home() / 'Desktop' / 'ianPredictions'))
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
     pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#    data2 = np.loadtxt(dataFile,delimiter=',',skiprows=1,usecols=(0))
+#    predictors = np.column_stack((data[:,0]-data[:,1],(data[:,2]+data[:,3])/2,data[:,4],data[:,5],data[:,6]))
+#    predictors = np.column_stack((data[:,0]-data[:,1],data[:,2],data[:,3],data[:,4]))
+
+#    predictors = np.column_stack((data[:,0],data[:,2],data[:,3],data[:,4])) #LowdwinH2, Buried, VBuried, pka, r2=0.70951(hyd), r2(h2)=0.2226
+
+#    predictors = np.column_stack((data[:,-4],data[:,-3],data[:,4])) #tau,tau,pka r2=0.7004262
+
+
+#startpka predict#   predictors = np.column_stack((data[:,-1]-data[:,2],data[:,2],data[:,3],data[:,6],data[:,7]))
+
+#    predictors = np.column_stack((data[:,-1]-data[:,0],data[:,5],data[:,6],(data[:,0]-data[:,1]),(data[:,1]-data[:,-1])))
+#    X = np.matrix([0,1,2,3,4,5,6,7,8,9,10]).reshape((11,1))
+
+#    predictors = np.column_stack((lc[:,0],lc[:,1],lc[:,2],bv[:,0],bv[:,1]))#,tau[:,0],tau[:,1]))
+#    print(regressor.fit_transform(X))
