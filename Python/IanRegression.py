@@ -4,11 +4,13 @@ Created on Oct 12, 2017
 
 import numpy as np
 from pathlib import Path
-from sklearn.linear_model.base import LinearRegression
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LassoCV
 import main
 import scatterPlot
 from sklearn.preprocessing.data import PolynomialFeatures
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
 if __name__ == '__main__':
@@ -26,27 +28,37 @@ if __name__ == '__main__':
 
 
 #    predictors = np.column_stack((lc[:,0],lc[:,1],lc[:,2],tau[:,0],tau[:,1]))
+#    predictors = np.column_stack((lc[:,0],lc[:,1],lc[:,2],tau[:,0],tau[:,1]))
+
+#### Hydricity prediction: Examples using the lowdin, tau and thermodynamic proporties ###
+#    predictors = np.column_stack((lc[:,0]-lc[:,2],tau[:,0],tau[:,1],therm[:,0]))
+#    predictors = np.column_stack((lc[:,0],lc[:,2],tau[:,0],tau[:,1],therm[:,0]))
+    predictors = np.column_stack((lc[:,0],lc[:,2],bv[:,0],bv[:,1],therm[:,0]))
 
 
-    predictors = np.column_stack((lc[:,2]-lc[:,1],lc[:,0]-lc[:,2],bv[:,0],bv[:,1]))
+#    predictors = np.column_stack((lc[:,2]-lc[:,1],lc[:,0]-lc[:,2],bv[:,0],bv[:,1]))
 
 
 #    predictors = np.column_stack((lc[:,0]-lc[:,2],bv[:,0],bv[:,1],therm[:,0]))
 
-    hydricities = therm[:,2]
+    hydricities = therm[:,1]
 
     # compound features
     polyFeatures = PolynomialFeatures(degree=2,interaction_only=True)
-    regressor = make_pipeline(polyFeatures, LinearRegression())
+#    regressor = make_pipeline(polyFeatures, StandardScaler(), LassoCV(max_iter=2000))
+    regressor = make_pipeline(polyFeatures, LassoCV(max_iter=2000))
+#    regressor = make_pipeline(polyFeatures, StandardScaler(), LinearRegression())
+#    regressor = make_pipeline(polyFeatures, LinearRegression())
 #    regressor = LinearRegression()
 
     regressor.fit(predictors, hydricities)
     print(regressor.steps[1][1].coef_)
     print(regressor.steps[1][1].intercept_)
+    print(regressor.steps[1][1].n_iter_)
     print(polyFeatures.get_feature_names())
-    print('R^2: ', regressor.score(predictors, hydricities))
+#    print('R^2: ', regressor.score(predictors, hydricities))
     predictions = regressor.predict(predictors)
-    scatterPlot.h2binding(hydricities, predictions, (Path.home() / 'Desktop' / 'ianPredictions'))
+    scatterPlot.Hyd(hydricities, predictions, (Path.home() / 'Desktop' / 'ML_Figures' / 'ianPredictions'))
    
 
 
