@@ -16,7 +16,7 @@ def Hyd(actual, predicted, outFileName):
     plt.plot([bounds[0], bounds[1]], [bounds[0], bounds[1]], color='#d95d41')
 
     rSquared = r2_score(actual, predicted)
-    print(rSquared)
+#    print(rSquared)
     plt.figtext(0.6,0.15,'$R^2 = $'+format(rSquared,'.4f'), fontsize=11)
     plt.xlabel('QM Calculated Hydricity (kcal/mol)', fontsize=10)
     plt.ylabel('Model Predicted Hydricity (kcal/mol)', fontsize=10)
@@ -44,7 +44,7 @@ def h2binding(actual, predicted, outFileName):
     plt.plot([bounds[0], bounds[1]], [bounds[0], bounds[1]], color='#d95d41')
 
     rSquared = r2_score(actual, predicted)
-    print(rSquared)
+#    print(rSquared)
     plt.figtext(0.6,0.15,'$R^2 = $'+format(rSquared,'.4f'), fontsize=11)
     plt.xlabel('QM Calculated $\mathregular{H_{2}}$ Binding Energy', fontsize=10)
     plt.ylabel('Model Predicted $\mathregular{H_{2}}$ Binding Energy', fontsize=10)
@@ -68,7 +68,7 @@ def pka(actual, predicted, outFileName):
     plt.plot([bounds[0], bounds[1]], [bounds[0], bounds[1]], color='#d95d41')
 
     rSquared = r2_score(actual, predicted)
-    print(rSquared)
+#    print(rSquared)
     plt.figtext(0.6,0.15,'$R^2 = $'+format(rSquared,'.4f'), fontsize=11)
     plt.xlabel('QM Calculated $\mathregular{pK_{a}}$', fontsize=10)
     plt.ylabel('Model Predicted $\mathregular{pK_{a}}$', fontsize=10)
