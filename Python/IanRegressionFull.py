@@ -20,8 +20,6 @@ from sklearn.preprocessing import scale
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
-from sklearn.ensemble import RandomForestRegressor
-from scipy import stats
 
 
 if __name__ == '__main__':
@@ -29,11 +27,14 @@ if __name__ == '__main__':
     dataFile = Path('D:/' '/GoogleDrive' '/Desktop' '/ML_Figures' '/AllData_CH3CN.csv')
 
 ########### Features ###############
+
     name = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(0))
 #Cobalt Charges
     NBO = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(29,30,31))
     lc = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(16,17,18))
     mc = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(13,14,15))
+
+
 #Phosphorous Charges
     lcPH2 = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(56,57,58,59))
     lcPH = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(60,61,62,63))
@@ -44,6 +45,7 @@ if __name__ == '__main__':
     NBOPH2 = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(32,33,34,35))
     NBOPH = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(36,37,38,39))
     NBOPnoH = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(40,41,42,43))
+    
 #Steric Properties
    #Buriedvolume
     bv = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(23,26))
@@ -51,26 +53,53 @@ if __name__ == '__main__':
     tau = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(11,12))
    #surface area 
     sa = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(19,21))
-    sv = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(20,22))
-   #surface area 
-   #surface area 
+
 #Key Thermodynamic Properties
     therm = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(8,9,10))
     hydricities = therm[:,1]
+
 #PKA stuffs
     CoHOMO = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(68,70))
     CoH2Len = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(74,75,76,77)) ##76 is CoH and 77 is angles
  
 
+#### Predictors: Examples using the lowdin, tau and thermodynamic proporties ###
+#    predictors = np.column_stack((lc[:,2],lc[:,1],lc[:,0],bv[:,0],bv[:,1],CoHOMO[:,0],CoHOMO[:,1],CoH2Len[:,0],CoH2Len[:,1]))
+#    predictors = np.column_stack((lc[:,0]-lc[:,2],tau[:,0],tau[:,1],therm[:,0]))
+#    predictors = np.column_stack((NBOPH2[:,0],NBOPH2[:,1],NBOPH2[:,2],NBOPH2[:,3],tau[:,0],tau[:,1],therm[:,0]))
+
+##kitchen sink
+#    predictors = np.column_stack((lc[:,0],lc[:,1],lc[:,2],mc[:,0],mc[:,1],mc[:,2],tau[:,0],tau[:,1],sa[:,0],sa[:,1],bv[:,0],bv[:,1],CoHOMO[:,0],CoHOMO[:,1],CoH2Len[:,0],CoH2Len[:,1],CoH2Len[:,2],CoH2Len[:,3],therm[:,0])) #kitchensink for all
+##Just hydride features and pka
+#    predictors = np.column_stack((lc[:,1],mc[:,1],tau[:,0],tau[:,1],sa[:,0],sa[:,1],bv[:,0],bv[:,1],CoHOMO[:,1],CoH2Len[:,2],therm[:,0])) #kitchensink for all
+## Just CoH2 and pka to predict
+#    predictors = np.column_stack((lc[:,0],mc[:,0],sa[:,0],sa[:,1],bv[:,0],bv[:,1],CoHOMO[:,0],CoH2Len[:,0],CoH2Len[:,1],CoH2Len[:,3],therm[:,0])) #and pka
+#    predictors = np.column_stack((lc[:,0],mc[:,0],sa[:,0],sa[:,1],bv[:,0],bv[:,1],CoHOMO[:,0],CoH2Len[:,0],CoH2Len[:,1],CoH2Len[:,3])) 
+## Just CoH 
+#    predictors = np.column_stack((lc[:,1],mc[:,1],sa[:,0],sa[:,1],bv[:,0],bv[:,1],CoHOMO[:,1],CoH2Len[:,2],therm[:,0],tau[:,1])) #and pka
+#    predictors = np.column_stack((lc[:,1],sa[:,0],sa[:,1],bv[:,0],bv[:,1],CoHOMO[:,1],CoH2Len[:,2],tau[:,1])) 
+#   predictors = np.column_stack((lc[:,1],bv[:,0],bv[:,1],CoHOMO[:,1],CoH2Len[:,2],tau[:,1])) 
+#    predictors = np.column_stack((lc[:,1],bv[:,0],bv[:,1],CoHOMO[:,1],tau[:,1])) 
+
+
+
+
+
 
 #Main Figures if wanting to reproduce
-    predictors = np.column_stack((NBO[:,0],NBO[:,1],NBO[:,2],lc[:,2],lc[:,1],lc[:,0],mc[:,0],mc[:,2],tau[:,0],tau[:,1],bv[:,0],bv[:,1],CoHOMO[:,0],CoH2Len[:,0],CoH2Len[:,1],CoH2Len[:,2],CoH2Len[:,3])) #kitchensink for all
+#    predictors = np.column_stack((lc[:,0],lc[:,1],lc[:,2],bv[:,0],bv[:,1],CoHOMO[:,0],therm[:,0]))  #Main Figures for text slide 1
+#    predictors = np.column_stack((NBO[:,0],NBO[:,1],NBO[:,2],lc[:,2],lc[:,1],lc[:,0],mc[:,0],mc[:,1],mc[:,2],tau[:,0],tau[:,1],sa[:,0],sa[:,1],bv[:,0],bv[:,1],CoHOMO[:,0],CoHOMO[:,1],CoH2Len[:,0],CoH2Len[:,1],CoH2Len[:,2],CoH2Len[:,3],therm[:,0])) #kitchensink for all
+#    predictors = np.column_stack((lc[:,1],CoHOMO[:,1],CoH2Len[:,2],CoH2Len[:,3]))
+#    predictors = np.column_stack((bv[:,0],bv[:,1],lc[:,1],CoHOMO[:,1],CoH2Len[:,2]))
+#    predictors = np.column_stack((lc[:,1],bv[:,0],bv[:,1],CoHOMO[:,1],CoH2Len[:,2]))  #Main Figures for text slide 1
+#    predictors = np.column_stack((NBO[:,1],bv[:,0],bv[:,1],CoHOMO[:,1],tau[:,1],therm[:,0]))  #Main Figures for text slide 1
+#    predictors = np.column_stack((bv[:,0],bv[:,1],CoHOMO[:,1],tau[:,1]))  #Main Figures for text slide 1
+#    predictors = np.column_stack((lc[:,1],bv[:,0],bv[:,1],tau[:,1]))  #Main Figures for text slide 1
 #    predictors = np.column_stack((CoHOMO[:,1],therm[:,0]))  #Main Figures for text slide 1
-#   predictors = np.column_stack((lc[:,1],bv[:,0],bv[:,1],tau[:,0],CoHOMO[:,0],CoH2Len[:,0]))  #Main Figures for text slide 1
-#    predictors = np.column_stack((lc[:,0],lc[:,2],lc[:,1],tau[:,0],CoHOMO[:,0],CoH2Len[:,0],sa[:,0],sa[:,1],sv[:,1],sv[:,0],bv[:,0],bv[:,1]))  #Main Figures for text slide 1
-#    predictors = np.column_stack((lc[:,0],lc[:,2],lc[:,1],tau[:,0],CoHOMO[:,0]))  #Main Figures for text slide 1
+#    predictors = np.column_stack((lc[:,1],bv[:,0],bv[:,1],tau[:,0],CoHOMO[:,1]))  #Main Figures for text slide 1
 
 
+    predictors = np.column_stack((lc[:,1],tau[:,0],CoHOMO[:,1]))  #Main Figures for text slide 1
 
 
 
@@ -93,76 +122,42 @@ if __name__ == '__main__':
 
 
     # compound features
-    polyFeatures = PolynomialFeatures(degree=3,interaction_only=False)
-    regressor = make_pipeline(polyFeatures, StandardScaler(), LassoCV(max_iter=60000, cv=KFold(n_splits=3, shuffle=True)))
-#    regressor = make_pipeline(polyFeatures, StandardScaler(), Lasso(alpha=0, max_iter=70000))#, fit_intercept=True))
+    polyFeatures = PolynomialFeatures(degree=1,interaction_only=True)
 #    regressor = make_pipeline(polyFeatures, StandardScaler(), LinearRegression())
-#    regressor = RandomForestRegressor(oob_score=True,n_estimators=2000)
-    
-
-
-
+#    regressor = make_pipeline(polyFeatures, StandardScaler(), LassoCV(eps=1e-3, max_iter=60000, cv=KFold(n_splits=3, shuffle=True),tol=1e-10,selection='random'))
+    regressor = make_pipeline(polyFeatures, StandardScaler(), LassoCV(max_iter=60000, cv=KFold(n_splits=3, shuffle=False)))
+#    regressor = make_pipeline(polyFeatures, StandardScaler(), Lasso(alpha=0.4, max_iter=70000))#, fit_intercept=True))
+#    scores = cross_val_score(regressor, predictors, hydricities, cv=KFold(n_splits=5, shuffle=True))
+#    print(scores)
 
 
 ####Make the output, print statements with detailed analysis of each step ##### 
+#    cv = ShuffleSplit(n_splits=10, test_size=0.3, random_state=None) 
     regressor.fit(predictors, hydricities)
-    predictions = regressor.predict(predictors)
-    print('R^2: ', regressor.score(predictors, hydricities))
-    print('Intercept:',regressor.steps[2][1].intercept_)
- #   print('Intercept:',regressor.steps[2][1].intercept_)
- #   print('Intercept:',regressor.steps[2][1].intercept_)
-#    print((regressor.steps[2][1].coef_).reshape((-1,1)))
-
-
-### Print Functions
-#    cv = ShuffleSplit(n_splits=9, test_size=0.1, random_state=None) 
 #    scores=cross_val_score(regressor,predictors,hydricities,cv=cv)
+
 #    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std()))
 #    print(scores)
     count=0
-#    count2=0
+    count2=0
 #    for item in regressor.predict(predictors):
 #        print(item, name[count2])
 #        count2+=1
+#    print('Alpha',regressor.steps[2][1].alpha_)
+    print('R^2: ', regressor.score(predictors, hydricities))
+#    print('R^2: ', regressor.score(predictors, hydricities))
 #    print('Intercept:',regressor.steps[2][1].intercept_)
 #    print('LassoOptIter:',regressor.steps[2][1].n_iter_)
     fn=np.asarray(polyFeatures.get_feature_names())
-    print(regressor.steps[2][1].sparse_coef_)
-#    scaler=regressor.steps[1][1].scale_
-#    for item in regressor.steps[2][1].coef_:
-#        print(fn[count], item, scaler[count])#,polyFeatures.get_feature_names())
-#        print(fn[count], item)#,polyFeatures.get_feature_names())
-#        count+=1
-#        count+=1
+#    print(regressor.steps[2][1].sparse_coef_)
+    scaler=regressor.steps[1][1].scale_
+    for item in regressor.steps[2][1].coef_:
+        print(fn[count], item, scaler[count])#,polyFeatures.get_feature_names())
+        count+=1
 
 #    print(regressor.steps[2][1])
 #    print(cross_val_score(predictors, hydricities))
-#    predictions2 = predictions3
-#    print(len(predictions2), len(hydricities))
-
-#    print('Alpha',regressor.steps[2][1].alpha_)
-
- #   predictions3 =(regressor.predict(predictors))
- #   predictions2 = predictions3.reshape((-1,1)) 
-
-
-
-#    regressor2 = LinearRegression()
-#    regressor2.fit(predictors, hydricities)
-#    predictions = regressor2.predict(predictors)
-#    predictions2 = predictions.reshape((-1,1))
-#    print('R^2(2): ', regressor2.score(predictions2, hydricities))
-#    print("scalar=",regressor[2][1].coef_, "intercept=", regressor[2][1].intercept_)
-#    predictions = regressor2.predict(predictions2)
- 
-
-
-#    print('R^2: ', regressor.score(predictors, hydricities))
-#    print(regressor2.predict(predictors))
-#    print(predictions)
-
-#    slope, intercept, r_value, p_value, std_err = stats.linregress(hydricities,predictions)
-#    print("linear Regression", r_value**2)
+    predictions = regressor.predict(predictors)
 
 
 #### Graphing the model versus prediction section ####
@@ -175,9 +170,8 @@ if __name__ == '__main__':
     if hydricities[0]==therm[0,2]:
         scatterPlot.h2binding(hydricities, predictions, Path('D:/' '/GoogleDrive' '/Desktop' '/ML_Figures' '/H2Binding'))
         print('H2Binding')
-#    elif:
-#        scatterPlot.h2binding(hydricities, predictions, Path('D:/' '/GoogleDrive' '/Desktop' '/ML_Figures' '/H2Binding'))
-#        print('none-looks like H2')
-
+#    else:
+        scatterPlot.h2binding(hydricities, predictions, Path('D:/' '/GoogleDrive' '/Desktop' '/ML_Figures' '/H2Binding'))
+        print('none-looks like H2')
+    pass 
 #    print(Path('D:/' '/GoogleDrive' '/Desktop' '/ML_Figures' '/ianPredictions')) 
-#    regressor = make_pipeline(polyFeatures, StandardScaler(), LassoCV(eps=1e-3, max_iter=60000, cv=KFold(n_splits=3, shuffle=True),tol=1e-10,selection='random'))

@@ -12,11 +12,14 @@ from sklearn.pipeline import make_pipeline
 
 if __name__ == '__main__':
     pass
-    dataFile = Path.home() / 'Downloads' / 'DataForJosh.csv'
+    dataFile = Path('D:/' '/GoogleDrive' '/Desktop' '/ML_Figures' '/AllData_CH3CN.csv')
     data = np.loadtxt(dataFile,delimiter=',',skiprows=1,usecols=(16,18,21,24,8,11,12,9,10))
-#    predictors = np.column_stack((data[:,0]-data[:,1],(data[:,2]+data[:,3])/2,data[:,4],data[:,5],data[:,6]))
-    predictors = np.column_stack((data[:,0]-data[:,1],data[:,2],data[:,3],data[:,4]))
-#    predictors = np.column_stack((data[:,4]))
+    CoHOMO = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(68,70))
+    therm = np.loadtxt(dataFile,delimiter=',',skiprows=2,usecols=(8,9,10))
+
+
+
+    predictors = np.column_stack((CoHOMO[:,1]))
 
 
 #    predictors = np.column_stack((data[:,0],data[:,2],data[:,3],data[:,4])) #LowdwinH2, Buried, VBuried, pka, r2=0.70951(hyd), r2(h2)=0.2226
@@ -27,10 +30,10 @@ if __name__ == '__main__':
 
 
 #    hydricities = data[:,-1] #actually for H2binding
-    hydricities = data[:,-2]
+    hydricities = therm[:,1]
 
     # compound features
-    polyFeatures = PolynomialFeatures(degree=2,interaction_only=True)
+    polyFeatures = PolynomialFeatures(degree=1,interaction_only=True)
     regressor = make_pipeline(polyFeatures, LinearRegression())
 #    regressor = LinearRegression()
 
