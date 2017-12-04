@@ -126,7 +126,7 @@ if __name__ == '__main__':
 #    regressor = make_pipeline(polyFeatures, StandardScaler(), LinearRegression())
 #    regressor = make_pipeline(polyFeatures, StandardScaler(), LassoCV(eps=1e-3, max_iter=60000, cv=KFold(n_splits=3, shuffle=True),tol=1e-10,selection='random'))
     regressor = make_pipeline(polyFeatures, StandardScaler(), LassoCV(max_iter=60000, cv=KFold(n_splits=3, shuffle=False)))
-#    regressor = make_pipeline(polyFeatures, StandardScaler(), Lasso(alpha=0.4, max_iter=70000))#, fit_intercept=True))
+#    regressor = make_pipeline(polyFeatures, StandardScaler(), Lasso(alpha=0.4, max_iter=70000))#, fit_intercept=True)
 #    scores = cross_val_score(regressor, predictors, hydricities, cv=KFold(n_splits=5, shuffle=True))
 #    print(scores)
 
